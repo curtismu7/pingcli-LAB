@@ -5,7 +5,6 @@ body { margin: 0; background: var(--bg-lab); color: var(--text-body); font-famil
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); overflow-x: hidden; }
 h1, h2, h3 { color: var(--text); }
 code, pre, .mono { font-family: var(--font-mono); }
-[hidden] { display: none !important; }
 a { color: var(--status-info); }
 
 /* 1. App shell: Core Dark bar in both themes, Ping Red gradient rule, pill nav */

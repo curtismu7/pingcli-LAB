@@ -1,12 +1,14 @@
-# PingCLI Lab
+# PingCLI LAB
 
 Tier: Demo.
+Repo: https://github.com/curtismu7/pingcli-LAB
+Catalog: D126
 
 An identity admin automates a PingOne environment from a terminal with [Ping CLI](https://github.com/pingidentity/pingcli). The lab offers 14 allow-listed, read-only `pingcli` commands (users, apps, groups, populations, identity providers, resources, roles, sign-on and MFA policies, environments, config keys, version, agent skills list and install). Each command shows the steps it needs (install, `pingcli init`, `pingcli pingone auth login`, run), streams its output to the browser, and turns the JSON into an easy-read table or form.
 
 Derived from the AI-DEMO2 /pingcli page (read-only source, never imported). Scaffold copied from observability-LAB (origin/main, 2026-11-09): its safety, netguard, health, workspace, cast/story, trace, doctor, reset, content-pack and UI-standard pieces were kept and all of its log, Loki and SIEM features removed.
 
-**Build status:** steps 1 (core) and 2 (web) of 3; step 3 is the shelf/lab-proxy integration.
+**Status:** shipped: on the demo shelf (port 7806) and behind the lab-proxy at `https://local.ping-devops.com:8443/pingcli/`.
 
 ## The page
 
@@ -34,6 +36,21 @@ Shared code vendored, never imported: `web/src/evidence/` and `server/src/vendor
 
 `GET /api/info` reports `source`, `realAvailable` and a non-secret `realHowTo`; `POST /api/mode` with exactly `{ "source": "mock" | "real" }` switches at runtime (409 when Real is not configured). This lab signs nobody in, so there is no persona picker (rule 11 is met by the mode header).
 
+## Run from a clone
+
+Prerequisites: Node 26 or newer. Docker (OrbStack) only if you use the Docker form. Mock works with no setup at all: no tenant, no credentials, no settings file, no pingcli binary.
+
+```
+git clone https://github.com/curtismu7/pingcli-LAB.git
+cd pingcli-LAB
+npm ci
+npm run build
+npm run doctor
+npm start
+```
+
+Open http://127.0.0.1:7806/ (the server serves the built page itself). `GET /api/health` answers `demo-health/1`. Or with Docker: `docker compose up --build -d` from the same folder.
+
 ## Run
 
 - Host: `./scripts/run.sh` (Node 26+), then open http://localhost:7806/.
@@ -53,6 +70,18 @@ Product claims carry a status in `server/src/storyData.js`: `observed-in-AI-DEMO
 
 Catalog id **D126** (owner, 2026-11-09): in the shelf entry and the Learning Hub content pack.
 
-## Port
+## Ports, and what to do if the port is taken
 
-7806 (allocated with `npm run ports -- --next` in demo-shelf-LAB).
+```
+Ports: pingcli-LAB listens on 7806 only (allocated with npm run ports -- --next in demo-shelf-LAB).
+Docker publishes it on 127.0.0.1:7806 only.
+
+If the port is taken:
+1. Find what is using it:
+   lsof -iTCP:7806 -sTCP:LISTEN -n -P
+2. If it is an old copy of this lab (npm start), stop that process: kill <PID>.
+   If it is this lab's container: docker compose down (from this folder).
+3. If it is something else, stop it. The lab refuses any other port on purpose
+   (one port per app; npm run doctor says so), so free 7806 rather than moving the lab.
+4. Then start again: npm start, or docker compose up -d.
+```
