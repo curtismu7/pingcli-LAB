@@ -21,6 +21,9 @@ export const ACTORS = {
   pingcli: { label: "Ping CLI", initials: "PC", lane: "agent", role: "The pingcli binary, acting for the admin with a worker profile.", sees: "its private profile, the worker token and the API responses", never: "anything outside its private folder" },
   "pingone-auth": { label: "PingOne token endpoint", initials: "PA", lane: "idp", role: "Issues the worker access token for client credentials.", sees: "the worker client id and secret", never: "what the API returns" },
   "pingone-api": { label: "PingOne management API", initials: "PM", lane: "mcp", role: "The management API that pingcli pingone api calls with the worker token.", sees: "the bearer token and the request", never: "the client secret" },
+  llm: { label: "Agent model", initials: "LM", lane: "llm", role: "The agent's model (here: Scripted intent match, mock). It reads the request and proposes a tool call; the policy decides whether it runs.", sees: "the customer's words and the tools it may call", never: "any token or secret" },
+  api: { label: "Resource server", initials: "RS", lane: "api", role: "The back-end API behind the tool. It checks the delegated token itself and returns the data.", sees: "the delegated token and the request", never: "the user's password or the agent secret" },
+  database: { label: "Database", initials: "DB", lane: "database", role: "The back end's own data store. Only the API talks to it.", sees: "the API's queries", never: "any token" },
 };
 
 export function actorOf(id) {
@@ -38,6 +41,12 @@ export function actorsIn(hops) {
   const out = [];
   for (const h of hops || []) for (const id of [h.from, h.to]) if (id && !out.includes(id)) out.push(id);
   return out;
+}
+
+// The hops a screen draws: every hop that ran, then (only when asked) the ones that did not run (verdict skip), in that order.
+export function withSkipped(hops, show) {
+  const ran = (hops || []).filter((h) => h.verdict !== "skip");
+  return show ? [...ran, ...(hops || []).filter((h) => h.verdict === "skip")] : ran;
 }
 
 export const touches = (hop, id) => Boolean(hop) && (hop.from === id || hop.to === id);
