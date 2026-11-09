@@ -1,0 +1,36 @@
+{
+  "schema": "diagram-studio/1",
+  "id": "pingcli-flow",
+  "title": "One pingcli command, from the browser to the PingOne management API",
+  "lede": "{{castAdmin}} picks one of 14 allow-listed commands. The lab starts pingcli with fixed arguments and a private worker profile; pingcli gets a token once, then reads {{castEnvName}} through the management API. In Mock the last two hops are simulated.",
+  "groups": {
+    "client": { "label": "Browser", "color": "grey" },
+    "lab": { "label": "This lab", "color": "dark" },
+    "cli": { "label": "Ping CLI", "color": "red" },
+    "pingone": { "label": "PingOne (SaaS)", "color": "blue" }
+  },
+  "nodes": [
+    { "id": "browser", "label": "Browser: PingCLI Lab page", "group": "client", "x": 0, "y": 120 },
+    { "id": "lab", "label": "Lab server (loopback, allow-list)", "group": "lab", "x": 300, "y": 120, "sub": ["14 fixed commands", "no shell", "secret scrubbed from output"] },
+    { "id": "profile", "label": "Private profile (config.yaml, mode 600)", "group": "lab", "x": 300, "y": 300 },
+    { "id": "pingcli", "label": "pingcli 1.2.0", "group": "cli", "x": 600, "y": 120 },
+    { "id": "auth", "label": "PingOne token endpoint", "group": "pingone", "x": 900, "y": 0 },
+    { "id": "api", "label": "PingOne management API", "group": "pingone", "x": 900, "y": 240 }
+  ],
+  "edges": [
+    { "source": "browser", "target": "lab", "label": "GET /api/stream?commandKey=..." },
+    { "source": "lab", "target": "profile", "label": "write worker profile (once)", "dashed": true },
+    { "source": "lab", "target": "pingcli", "label": "spawn with fixed args + --config" },
+    { "source": "pingcli", "target": "auth", "label": "pingone auth login (client credentials, once)" },
+    { "source": "pingcli", "target": "api", "label": "pingone api environments/<env>/users" },
+    { "source": "lab", "target": "browser", "label": "SSE: meta, chunk..., done" }
+  ],
+  "steps": [
+    { "title": "Pick a command", "what": "The page sends only a key. Anything that is not one of the 14 keys is refused with 400 before a process starts.", "edges": [0], "hop": "browser-lab" },
+    { "title": "A private profile", "what": "The lab writes a worker client-credentials profile into a fresh private folder and points pingcli's HOME there. The secret never leaves that file.", "edges": [1] },
+    { "title": "Start pingcli", "what": "No shell and fixed arguments: execFile-style spawn with a minimal environment, a timeout and an output cap.", "edges": [2], "hop": "lab-pingcli" },
+    { "title": "Authenticate once", "what": "pingcli pingone auth login gets a worker token with client credentials and stores it under the private HOME. Mock simulates this hop.", "edges": [3], "hop": "pingcli-pingone-auth" },
+    { "title": "Read the environment", "what": "pingcli pingone api calls the management API and prints its JSON under data._embedded. Mock plays canned JSON for {{castOrg}}.", "edges": [4], "hop": "pingcli-pingone-api" },
+    { "title": "Stream it back", "what": "Output streams to the page as server-sent events, scrubbed of the secret and client id, then the page turns it into a table.", "edges": [5] }
+  ]
+}

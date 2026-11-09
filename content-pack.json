@@ -1,0 +1,257 @@
+{
+  "schema": "demo-content-pack/1",
+  "id": "pingcli-lab",
+  "title": "PingCLI Lab",
+  "version": "0.1.0",
+  "demo": {
+    "id": "pingcli-lab",
+    "name": "PingCLI Lab",
+    "catalog": "D126",
+    "baseUrl": "http://localhost:7806",
+    "doctor": "/api/health",
+    "tags": [
+      "pingcli",
+      "pingone",
+      "automation",
+      "cli",
+      "management-api",
+      "agent-skills",
+      "simulated"
+    ]
+  },
+  "glossary": [
+    {
+      "id": "pinned-cli",
+      "term": "Pinned CLI version",
+      "definition": "The lab runs one pingcli version (1.2.0). Commands and output shapes change between versions, so automation pins the version it was written against.",
+      "aliases": [
+        "pingcli version"
+      ]
+    },
+    {
+      "id": "worker-profile",
+      "term": "Worker client-credentials profile",
+      "definition": "A pingcli configuration profile that authenticates as a PingOne worker application with a client id and secret. pingcli pingone auth login turns it into a stored access token.",
+      "aliases": [
+        "pingcli init",
+        "client credentials"
+      ]
+    },
+    {
+      "id": "pingone-api",
+      "term": "pingcli pingone api",
+      "definition": "A cURL-like command that calls the PingOne management API with the profile's token and prints the JSON response, with lists under data._embedded.",
+      "aliases": [
+        "management API"
+      ]
+    },
+    {
+      "id": "agent-skills",
+      "term": "Agent skills",
+      "definition": "Instruction packs a coding agent can install so it uses Ping CLI correctly. The lab installs one only into a throwaway folder.",
+      "aliases": [
+        "agent-skills install"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "pingcli-repo",
+      "title": "pingidentity/pingcli on GitHub (releases and checksums)",
+      "url": "https://github.com/pingidentity/pingcli",
+      "kind": "vendor",
+      "use": "Where the pinned 1.2.0 binary and its sha256 checksums come from.",
+      "status": "read",
+      "checked": "2026-11-09"
+    },
+    {
+      "id": "trace-context",
+      "title": "W3C Trace Context",
+      "url": "https://www.w3.org/TR/trace-context/",
+      "kind": "standard",
+      "use": "The traceparent header shown on every hop.",
+      "status": "not-read",
+      "checked": "2026-11-09"
+    }
+  ],
+  "cards": [
+    {
+      "id": "try-check-the-tool",
+      "label": "Scenario 1: Check the tool",
+      "description": "A pinned CLI version is part of the automation contract.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-check-the-tool"
+      },
+      "terms": [
+        "pinned-cli"
+      ],
+      "story": "S01"
+    },
+    {
+      "id": "try-what-can-be-configured",
+      "label": "Scenario 2: What can be configured",
+      "description": "Configuration is data: a profile, not a pile of flags.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-what-can-be-configured"
+      },
+      "terms": [
+        "worker-profile"
+      ],
+      "story": "S02"
+    },
+    {
+      "id": "try-where-am-i",
+      "label": "Scenario 3: Where am I",
+      "description": "Authenticate once, then every command reuses the token.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-where-am-i"
+      },
+      "terms": [
+        "worker-profile"
+      ],
+      "story": "S03"
+    },
+    {
+      "id": "try-who-is-in-the-directory",
+      "label": "Scenario 4: Who is in the directory",
+      "description": "pingone api returns the same JSON as the management API, under data._embedded.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-who-is-in-the-directory"
+      },
+      "terms": [
+        "pingone-api"
+      ],
+      "story": "S04"
+    },
+    {
+      "id": "try-what-apps-exist",
+      "label": "Scenario 5: What apps exist",
+      "description": "An inventory you can diff in CI beats a screenshot of the console.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-what-apps-exist"
+      },
+      "terms": [
+        "pingone-api"
+      ],
+      "story": "S05"
+    },
+    {
+      "id": "try-how-people-sign-in",
+      "label": "Scenario 6: How people sign in",
+      "description": "Read policy before you change it.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-how-people-sign-in"
+      },
+      "terms": [
+        "pingone-api"
+      ],
+      "story": "S06"
+    },
+    {
+      "id": "try-who-can-do-what",
+      "label": "Scenario 7: Who can do what",
+      "description": "Least privilege starts with knowing the roles.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-who-can-do-what"
+      },
+      "terms": [
+        "pingone-api"
+      ],
+      "story": "S07"
+    },
+    {
+      "id": "try-hand-it-to-an-agent",
+      "label": "Scenario 8: Hand it to an agent",
+      "description": "The same allow-listed commands work for a person and for an agent.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/#scenario-hand-it-to-an-agent"
+      },
+      "terms": [
+        "agent-skills"
+      ],
+      "story": "S08"
+    },
+    {
+      "id": "concept-hops",
+      "label": "Follow the hops",
+      "description": "Browser to lab, lab to pingcli, pingcli to the PingOne token endpoint once, then to the management API, with a traceparent on each hop.",
+      "group": "concept",
+      "action": {
+        "type": "route",
+        "href": "/#diagram"
+      },
+      "terms": [
+        "worker-profile",
+        "pingone-api"
+      ]
+    },
+    {
+      "id": "ref-doctor",
+      "label": "Doctor and health",
+      "description": "Preflight checks and the demo-health/1 endpoint.",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/api/health"
+      }
+    }
+  ],
+  "stories": [
+    {
+      "id": "S01",
+      "title": "Check the tool",
+      "say": "Before Jordan Ellis automates anything, they check which Ping CLI build is installed: the version pins what the commands and output shapes look like."
+    },
+    {
+      "id": "S02",
+      "title": "What can be configured",
+      "say": "Every setting pingcli reads has a key. The worker client id, secret, environment id and root domain are the four that matter for Northwind Storefront."
+    },
+    {
+      "id": "S03",
+      "title": "Where am I",
+      "say": "With a token, Jordan Ellis lists the environments the worker can see, and finds Northwind Storefront and its sandbox."
+    },
+    {
+      "id": "S04",
+      "title": "Who is in the directory",
+      "say": "The users of Northwind Retail come back as JSON a script can filter: name, username, email, enabled."
+    },
+    {
+      "id": "S05",
+      "title": "What apps exist",
+      "say": "The applications registered for Northwind Retail: web, mobile, single-page and the worker this lab itself uses."
+    },
+    {
+      "id": "S06",
+      "title": "How people sign in",
+      "say": "Sign-on policies decide how Northwind Retail users authenticate; the default is the one most people hit."
+    },
+    {
+      "id": "S07",
+      "title": "Who can do what",
+      "say": "The built-in roles are not environment-scoped, so this is the one command whose URI has no environment id."
+    },
+    {
+      "id": "S08",
+      "title": "Hand it to an agent",
+      "say": "Ping CLI ships agent skills: instructions a coding agent can load so it drives pingcli for Jordan Ellis correctly."
+    }
+  ]
+}
