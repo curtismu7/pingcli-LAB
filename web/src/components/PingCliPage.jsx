@@ -1,6 +1,7 @@
 // The PingCLI page, ported from AI-DEMO2's PingCliPage (read-only source, never imported) onto the Ping UI standard.
 // Same story: install -> configure + authenticate -> how to run, then command cards by category with Copy and Run, the
-// streamed response with "What was needed to run this", a sticky run status, and Easy read (table/form) vs JSON.
+// streamed result (run status, a one-line install -> configure -> auth -> command chain, Easy read vs JSON), shown
+// directly under the category of the card that was run.
 // Differences: no admin sign-in (this lab has none; the Real how-to takes its place), colours from tokens only, every
 // piece of command output is React text passed through visible() (control, bidi and ANSI escape characters shown as
 // visible escapes), and output is bounded on the client too.
@@ -31,20 +32,41 @@ function copyToClipboard(text) {
 }
 
 // Collapsible section whose open state is remembered across reloads. forceOpen true/false wins while it is set.
-export function CollapsibleSection({ id, title, defaultOpen = true, children, forceOpen = null, level = 2 }) {
+// defaultOpen applies until the person opens or closes the section themselves (a remembered choice always wins), and it
+// may change after mount (Install collapses once /api/version says pingcli is there). badge: shown in the header.
+// openSection(id) opens a section from anywhere (the result chain's links) and scrolls it into view.
+const OPEN_EVENT = "pingcli-lab:open-section";
+export const openSection = (id) => window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: id }));
+export const scrollBehavior = () => { try { return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; } catch { return "auto"; } };
+
+export function CollapsibleSection({ id, title, defaultOpen = true, children, forceOpen = null, level = 2, badge = null }) {
   const [open, setOpen] = useState(() => {
     const saved = readSectionOpenMap()[id];
     return typeof saved === "boolean" ? saved : defaultOpen;
   });
+  const ref = useRef(null);
+  useEffect(() => {
+    if (typeof readSectionOpenMap()[id] !== "boolean") setOpen(defaultOpen);
+  }, [id, defaultOpen]);
+  useEffect(() => {
+    const on = (e) => {
+      if (e.detail !== id) return;
+      setOpen(true); writeSectionOpen(id, true);
+      setTimeout(() => ref.current?.scrollIntoView?.({ behavior: scrollBehavior(), block: "start" }), 0);
+    };
+    window.addEventListener(OPEN_EVENT, on);
+    return () => window.removeEventListener(OPEN_EVENT, on);
+  }, [id]);
   const toggle = () => setOpen((prev) => { const next = !prev; writeSectionOpen(id, next); return next; });
   const shown = forceOpen === null ? open : Boolean(forceOpen);
   const H = level === 3 ? "h3" : "h2";
   return (
-    <section className={`collapse${shown ? " is-open" : ""}`} data-testid={`section-${id}`}>
+    <section ref={ref} id={`section-${id}`} className={`collapse${shown ? " is-open" : ""}`} data-testid={`section-${id}`}>
       <H className="collapse__heading">
         <button type="button" className="collapse__toggle" aria-expanded={shown} aria-controls={`section-body-${id}`} onClick={toggle}>
           <span aria-hidden="true">{shown ? "▾" : "▸"}</span> {title}
         </button>
+        {badge && <span className="collapse__badge">{badge}</span>}
       </H>
       {shown && <div id={`section-body-${id}`} className="collapse__body">{children}</div>}
     </section>
@@ -82,12 +104,25 @@ export function RealHowTo({ info }) {
   );
 }
 
-function InstallSection({ envId }) {
+// The header chip for Install: what /api/version said (Mock: the labelled mock version), and a mismatch warning in Real.
+export function installBadge(version) {
+  if (!version?.version) return null;
+  return (
+    <>
+      <span className="chip chip--ok" data-testid="pingcli-version"><span className="dot" aria-hidden="true" />✓ pingcli {version.version}{version.source === "mock" ? " (MOCK)" : " installed"}</span>
+      {version.matchesPinned === false && <> <span className="chip chip--warn" data-testid="version-mismatch"><span className="dot" aria-hidden="true" />not the pinned {version.pinned}: output shapes may differ</span></>}
+    </>
+  );
+}
+
+function InstallSection({ envId, version }) {
   const [copied, copy] = useCopied();
+  // Installed (a version answered) = start collapsed; no version known = start open. A remembered choice wins.
+  const installed = Boolean(version?.version);
   const usersCmd = `pingcli pingone api environments/${envId || "<environment-id>"}/users -O json`;
   return (
     <>
-      <CollapsibleSection id="install" title="1. Install PingCLI">
+      <CollapsibleSection id="install" title="1. Install PingCLI" defaultOpen={!installed} badge={installBadge(version)}>
         <p>PingCLI is the official command-line tool for PingOne and related Ping Identity services. On a Mac, install it with Homebrew:</p>
         <p className="step-label">Trust the Ping Identity tap</p>
         <CodeCopyRow text="brew trust pingidentity/tap" copyId="trust" copied={copied} onCopy={copy} />
@@ -114,7 +149,7 @@ function InstallSection({ envId }) {
           <ol className="steps">
             <li>Pick a command card below (for example List users).</li>
             <li>Press <strong>Run</strong>. In Real the lab logs in once, then streams the result; in Mock it plays canned output.</li>
-            <li>Read <strong>What was needed to run this</strong> above the output: install, init, auth, command.</li>
+            <li>The result opens right under the card's category: one line shows what the command needed (installed, configured, authenticated) with links back to sections 1 and 2.</li>
             <li>Use <strong>Easy read</strong> for a table or form, <strong>JSON</strong> for the raw payload, and the <strong>Trace</strong> tab for every hop.</li>
             <li>Use <strong>Copy</strong> on a card or a step to paste the same command into your own terminal.</li>
           </ol>
@@ -178,6 +213,39 @@ function EasyRead({ readable }) {
       <p className="results__head"><strong>Details</strong> <span className="muted">{visible(readable.message || readable.status || "Key / value")}</span></p>
       <dl className="kv">{readable.fields.map((f) => <div key={f.key} className="kv__row"><dt>{visible(f.key)}</dt><dd className="mono">{f.value === "" ? "—" : visible(f.value)}</dd></div>)}</dl>
     </div>
+  );
+}
+
+// One line instead of a second copy of the install/configure steps: what this command needed, each step linking back to
+// (and opening) its section above, then the command itself with Copy. Steps a command does not need are omitted
+// (the server's prereqs list them). Mock says "simulated" where the lab did not really do the step.
+const CHAIN = [
+  [/^Install/i, "installed", "install"],
+  [/^Configure/i, "configured", "configure"],
+  [/^Authenticate/i, "authenticated", "configure"],
+];
+export function PrereqChain({ prereqs, source, copied, onCopy }) {
+  const mock = source === "mock";
+  const steps = [];
+  let command = null; let commandIndex = -1;
+  prereqs.forEach((p, i) => {
+    const hit = CHAIN.find(([re]) => re.test(p.title || ""));
+    if (hit) steps.push({ word: hit[1], section: hit[2], title: p.title });
+    else if (/^Run/i.test(p.title || "")) { command = p.command; commandIndex = i; }
+  });
+  return (
+    <p className="chain" data-testid="prereq-chain">
+      {steps.map((st) => (
+        <span key={st.word} className="chain__step">
+          <a href={`#section-${st.section}`} data-testid={`chain-${st.word}`} title={`${st.title}: open section ${st.section === "install" ? 1 : 2}`}
+            onClick={(e) => { e.preventDefault(); openSection(st.section); }}>✓ {st.word}{mock ? " (simulated)" : ""}</a>
+          <span className="chain__arrow" aria-hidden="true"> → </span>
+        </span>
+      ))}
+      {command && (
+        <span className="chain__cmd">▶ <code>{command}</code> <button type="button" data-testid="chain-copy" onClick={() => onCopy(commandIndex, command)}>{copied === commandIndex ? "Copied!" : "Copy"}</button></span>
+      )}
+    </p>
   );
 }
 
@@ -322,26 +390,65 @@ export default function PingCliPage({ info, vertical, dataSignal = 0, resetSigna
   }, [running, exitCode, output]);
   useEffect(() => {
     if (running === null || !outputRef.current) return;
-    outputRef.current.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    outputRef.current.scrollIntoView?.({ behavior: scrollBehavior(), block: "nearest" });
   }, [running]);
 
   const envId = /environments\/([0-9a-f-]{36})\//.exec(byKey.pingone_users_list?.label || "")?.[1];
+  // The one result panel lives directly under the category whose card was run (owner, 2026-11-09).
+  const resultCategory = activeKey ? byKey[activeKey]?.category : null;
   const jsonTokens = output && (viewMode === "json" || !canEasyRead) ? tokenizeJson(output) : null;
+
+  const resultPanel = (showTerminal || runStatus) ? (
+    <div ref={outputRef} className="output" data-testid="output">
+      {runStatus && (
+        <div className="run-status" role="status" aria-live="polite" aria-busy={runStatus.phase === "running"} data-testid="run-status">
+          {runStatus.phase === "running"
+            ? <><span className="chip chip--info"><span className="dot" aria-hidden="true" />Running</span> {runStatus.label}...</>
+            : <><span className={`chip ${runStatus.exitCode === 0 ? "chip--ok" : "chip--danger"}`}><span className="dot" aria-hidden="true" />{runStatus.exitCode === 0 ? "Done" : "Failed"}</span> <strong>{runStatus.label}</strong> (exit {runStatus.exitCode})</>}
+        </div>
+      )}
+      {runError && <p className="run-error" role="alert" data-testid="run-error"><span className="chip chip--danger"><span className="dot" aria-hidden="true" />Reason</span> {visible(runError)}</p>}
+      {showTerminal && prereqs.length > 0 && <PrereqChain prereqs={prereqs} source={source || info?.mode} copied={copiedPrereq} onCopy={copyPrereq} />}
+      {showTerminal && (
+        <CollapsibleSection id="response" title="Command response" forceOpen={running !== null ? true : null}>
+          {canEasyRead && (
+            <div className="tabs" role="group" aria-label="Output view">
+              <button type="button" aria-pressed={viewMode === "easy"} onClick={() => setViewMode("easy")} data-testid="view-easy">Easy read</button>
+              <button type="button" aria-pressed={viewMode === "json"} onClick={() => setViewMode("json")} data-testid="view-json">JSON</button>
+            </div>
+          )}
+          <ErrorBoundary resetKey={runSeq} title="This output could not be shown" testId="output-error">
+          <div className="terminal" data-testid="terminal">
+            <div className="terminal__head">
+              <code className="terminal__prompt">$ {cmdLabel || "..."}</code>
+              {source === "mock" && <span className="chip chip--warn" data-testid="mock-output"><span className="dot" aria-hidden="true" />MOCK output</span>}
+              {source === "real" && <span className="chip chip--info"><span className="dot" aria-hidden="true" />Real output</span>}
+              {exitCode !== null && <span className={`chip ${exitCode === 0 ? "chip--ok" : "chip--danger"}`} data-testid="exit-chip"><span className="dot" aria-hidden="true" />exit {exitCode}</span>}
+            </div>
+            {viewMode === "easy" && readable && <EasyRead readable={readable} />}
+            {(viewMode === "json" || !canEasyRead) && (jsonTokens
+              ? <JsonView output={output} />
+              : <pre className="terminal__body" tabIndex={0} aria-label="Command output" data-testid="raw-output">{output ? visible(output) : running ? "Running..." : "(no output)"}</pre>)}
+            {truncated && <p className="terminal__note" data-testid="truncated"><span className="chip chip--warn"><span className="dot" aria-hidden="true" />Truncated</span> The server stopped the output at its size cap; what is above is the first part.</p>}
+          </div>
+          </ErrorBoundary>
+        </CollapsibleSection>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="pingcli">
       <p className="lede">The official CLI for PingOne administration. Pick a command to run it{info?.mode === "real" ? " live against your configured environment" : " in Mock (canned output, nothing leaves this machine)"}.
-        {version?.version && <> <span className="chip chip--info" data-testid="pingcli-version"><span className="dot" aria-hidden="true" />pingcli v{version.version}{version.source === "mock" ? " (MOCK)" : ""}</span></>}
-        {version?.version && version.matchesPinned === false && <> <span className="chip chip--warn" data-testid="version-mismatch"><span className="dot" aria-hidden="true" />not the pinned {version.pinned}: output shapes may differ</span></>}
       </p>
       <RealHowTo info={info} />
-      {!presenter && <InstallSection envId={envId} />}
+      {!presenter && <InstallSection envId={envId} version={version} />}
 
-      <CollapsibleSection id="live-commands" title={presenter ? "Commands" : "4. Commands"}>
+      <CollapsibleSection id="live-commands" title={presenter ? "Commands" : "4. Commands"} forceOpen={resultPanel ? true : null}>
         <p className="hint">Only these 14 read-only commands can run: the page sends a key, the server holds the arguments. Copy any command into your own terminal after you authenticate.</p>
         {loadError && <p className="error" role="alert">Could not load the commands ({loadError}).</p>}
         {categories.map((cat) => (
-          <CollapsibleSection key={cat} id={`cat-${cat.toLowerCase().replace(/[^a-z]+/g, "-")}`} title={cat} level={3}>
+          <CollapsibleSection key={cat} id={`cat-${cat.toLowerCase().replace(/[^a-z]+/g, "-")}`} title={cat} level={3} forceOpen={resultPanel && resultCategory === cat ? true : null}>
             <div className="card-grid cmd-grid">
               {commands.filter((c) => c.category === cat).map((c) => {
                 const isRunning = running === c.key;
@@ -361,63 +468,11 @@ export default function PingCliPage({ info, vertical, dataSignal = 0, resetSigna
                 );
               })}
             </div>
+            {resultCategory === cat && resultPanel}
           </CollapsibleSection>
         ))}
       </CollapsibleSection>
 
-      {(showTerminal || runStatus) && (
-        <div ref={outputRef} className="output" data-testid="output">
-          {runStatus && (
-            <div className="run-status" role="status" aria-live="polite" aria-busy={runStatus.phase === "running"} data-testid="run-status">
-              {runStatus.phase === "running"
-                ? <><span className="chip chip--info"><span className="dot" aria-hidden="true" />Running</span> {runStatus.label}...</>
-                : <><span className={`chip ${runStatus.exitCode === 0 ? "chip--ok" : "chip--danger"}`}><span className="dot" aria-hidden="true" />{runStatus.exitCode === 0 ? "Done" : "Failed"}</span> <strong>{runStatus.label}</strong> (exit {runStatus.exitCode})</>}
-            </div>
-          )}
-          {runError && <p className="run-error" role="alert" data-testid="run-error"><span className="chip chip--danger"><span className="dot" aria-hidden="true" />Reason</span> {visible(runError)}</p>}
-          {showTerminal && prereqs.length > 0 && (
-            <CollapsibleSection id="prereqs" title="What was needed to run this">
-              <p className="hint">Install → configure → auth → command (as on your own machine)</p>
-              <ol className="prereqs">
-                {prereqs.map((step, i) => (
-                  <li key={`${step.title}-${i}`}>
-                    <div className="prereqs__top"><strong>{i + 1}. {step.title}</strong>
-                      {step.command && <button type="button" onClick={() => copyPrereq(i, step.command)}>{copiedPrereq === i ? "Copied!" : "Copy"}</button>}
-                    </div>
-                    {step.command && <code className="prereqs__cmd">{step.command}</code>}
-                    {step.note && <p className="hint">{step.note}</p>}
-                  </li>
-                ))}
-              </ol>
-            </CollapsibleSection>
-          )}
-          {showTerminal && (
-            <CollapsibleSection id="response" title="Command response" forceOpen={running !== null ? true : null}>
-              {canEasyRead && (
-                <div className="tabs" role="group" aria-label="Output view">
-                  <button type="button" aria-pressed={viewMode === "easy"} onClick={() => setViewMode("easy")} data-testid="view-easy">Easy read</button>
-                  <button type="button" aria-pressed={viewMode === "json"} onClick={() => setViewMode("json")} data-testid="view-json">JSON</button>
-                </div>
-              )}
-              <ErrorBoundary resetKey={runSeq} title="This output could not be shown" testId="output-error">
-              <div className="terminal" data-testid="terminal">
-                <div className="terminal__head">
-                  <code className="terminal__prompt">$ {cmdLabel || "..."}</code>
-                  {source === "mock" && <span className="chip chip--warn" data-testid="mock-output"><span className="dot" aria-hidden="true" />MOCK output</span>}
-                  {source === "real" && <span className="chip chip--info"><span className="dot" aria-hidden="true" />Real output</span>}
-                  {exitCode !== null && <span className={`chip ${exitCode === 0 ? "chip--ok" : "chip--danger"}`} data-testid="exit-chip"><span className="dot" aria-hidden="true" />exit {exitCode}</span>}
-                </div>
-                {viewMode === "easy" && readable && <EasyRead readable={readable} />}
-                {(viewMode === "json" || !canEasyRead) && (jsonTokens
-                  ? <JsonView output={output} />
-                  : <pre className="terminal__body" tabIndex={0} aria-label="Command output" data-testid="raw-output">{output ? visible(output) : running ? "Running..." : "(no output)"}</pre>)}
-                {truncated && <p className="terminal__note" data-testid="truncated"><span className="chip chip--warn"><span className="dot" aria-hidden="true" />Truncated</span> The server stopped the output at its size cap; what is above is the first part.</p>}
-              </div>
-              </ErrorBoundary>
-            </CollapsibleSection>
-          )}
-        </div>
-      )}
     </div>
   );
 }

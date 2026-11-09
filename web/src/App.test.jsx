@@ -14,14 +14,15 @@ const HOPS = [
   { n: 2, kind: "pingcli-auth-login", from: "pingcli", to: "pingone-auth", verdict: "ok", mock: true, traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203332-01", title: "Worker token", narrative: "MOCK token", fact: "worker token issued", spec: { mandate: "m", why: "w", failure: "f", refs: [{ label: "RFC 6749 §4.4", url: "https://www.rfc-editor.org/rfc/rfc6749#section-4.4" }] }, request: { method: "POST", url: "https://auth.pingone.example/e/as/token", body: "client_secret=[write-only]" }, response: { status: 200, body: { access_token: "MOCK-ACCESS-TOKEN-not-a-real-token" } } },
 ];
 const COMMANDS = [
-  { key: "pingone_users_list", title: "List users", category: "Identity and directory", label: "pingcli pingone api environments/81ec279a-7b44-4595-a0ba-0fec2079c592/users -O json", runnable: true, auth: true, prereqs: [{ title: "Install PingCLI", command: "brew install pingidentity/tap/pingcli", note: "Mock" }, { title: "Run command", command: "pingcli pingone api x -O json", note: "n" }] },
-  { key: "config_list_keys", title: "Config keys", category: "Platform and config", label: "pingcli config list-keys", runnable: true, auth: false, prereqs: [] },
+  { key: "pingone_users_list", title: "List users", category: "Identity and directory", label: "pingcli pingone api environments/81ec279a-7b44-4595-a0ba-0fec2079c592/users -O json", runnable: true, auth: true, prereqs: [{ title: "Install PingCLI", command: "brew install pingidentity/tap/pingcli", note: "Mock" }, { title: "Configure credentials", command: "pingcli init" }, { title: "Authenticate", command: "pingcli pingone auth login" }, { title: "Run command", command: "pingcli pingone api x -O json", note: "n" }] },
+  { key: "config_list_keys", title: "Config keys", category: "Platform and config", label: "pingcli config list-keys", runnable: true, auth: false, prereqs: [{ title: "Install PingCLI", command: "brew install pingidentity/tap/pingcli" }, { title: "Configure credentials", command: "pingcli init" }, { title: "Run command", command: "pingcli config list-keys" }] },
+  { key: "version", title: "Version", category: "Platform and config", label: "pingcli --version", runnable: true, auth: false, prereqs: [{ title: "Install PingCLI", command: "brew install pingidentity/tap/pingcli" }, { title: "Run command", command: "pingcli --version" }] },
 ];
 const STORY = (v) => ({ intro: `${v === "banking" ? "Dana Okafor at Fabrikam Bank" : "Jordan Ellis at Northwind Retail"} automates PingOne.`, verticals: ["banking", "healthcare", "retail"], scenarios: [{ id: "who-is-in-the-directory", title: "Who is in the directory", commandKey: "pingone_users_list", say: "Users of the org", lesson: "JSON a script can use" }], facts: [{ id: "f", status: "UNVERIFIED", text: "shapes are illustrative" }], talkTrack: [{ title: "Open", say: "Say this first." }, { title: "Follow the hops", say: "Open the hops." }], tokenLabel: "MOCK" });
 const sse = (frames, { trailing = true } = {}) => frames.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}`).join("\n\n") + (trailing ? "\n\n" : "");
 
 let server;
-function fakeServer({ realAvailable = false, runText = USERS, trailing = true, runStatus = 200, refuseReal = false, done = { exitCode: 0 }, version = null } = {}) {
+function fakeServer({ realAvailable = false, runText = USERS, trailing = true, runStatus = 200, refuseReal = false, done = { exitCode: 0 }, version = null, versionStatus = 200 } = {}) {
   const s = { mode: "mock", calls: [] };
   s.fetch = vi.fn(async (url, opts = {}) => {
     const u = new URL(url, "http://127.0.0.1:7806");
@@ -36,14 +37,15 @@ function fakeServer({ realAvailable = false, runText = USERS, trailing = true, r
     }
     if (u.pathname === "/api/story") return json(STORY(u.searchParams.get("vertical")));
     if (u.pathname === "/api/commands") return json(COMMANDS);
-    if (u.pathname === "/api/version") return json(version || { version: "1.2.0", source: s.mode });
+    if (u.pathname === "/api/version") return versionStatus === 200 ? json(version || { version: "1.2.0", source: s.mode }) : json({ error: "pingcli binary not installed" }, versionStatus);
     if (u.pathname === "/api/reset") return json({ reset: "ok" });
     if (u.pathname === "/api/shelf") return json({ shelfUrl: null });
     if (u.pathname === "/api/diagram") return json({ title: "One pingcli command", intro: "i", nodes: [{ id: "browser", label: "Browser", kind: "client", x: 0, y: 0 }, { id: "lab", label: "Lab", kind: "lab", x: 300, y: 0 }], steps: [{ from: "browser", to: "lab", label: "Pick a command", say: "s" }] });
     if (u.pathname === "/api/stream") {
       if (runStatus !== 200) return json({ error: "run_in_progress", detail: "busy" }, runStatus);
+      const cmd = COMMANDS.find((c) => c.key === u.searchParams.get("commandKey")) || COMMANDS[0];
       const half = Math.floor(runText.length / 2);
-      return new Response(sse([["meta", { command: COMMANDS[0].label, source: s.mode, prereqs: COMMANDS[0].prereqs }], ["chunk", { text: runText.slice(0, half) }], ["chunk", { text: runText.slice(half) }], ["done", { source: s.mode, traceId: "0af7651916cd43dd8448eb211c80319c", hops: HOPS, ...done }]], { trailing }), { status: 200, headers: { "content-type": "text/event-stream" } });
+      return new Response(sse([["meta", { command: cmd.label, source: s.mode, prereqs: cmd.prereqs }], ["chunk", { text: runText.slice(0, half) }], ["chunk", { text: runText.slice(half) }], ["done", { source: s.mode, traceId: "0af7651916cd43dd8448eb211c80319c", hops: HOPS, ...done }]], { trailing }), { status: 200, headers: { "content-type": "text/event-stream" } });
     }
     return json({ error: "not_found" }, 404);
   });
@@ -129,10 +131,10 @@ describe("shell, banner and mode", () => {
 });
 
 describe("running a command", () => {
-  test("SSE run: prereqs panel, MOCK label, exit chip, Easy read table, then JSON with highlighting", async () => {
+  test("SSE run: prereq chain, MOCK label, exit chip, Easy read table, then JSON with highlighting", async () => {
     render(<App />);
     await runUsers();
-    expect(screen.getByTestId("section-prereqs")).toHaveTextContent("What was needed to run this");
+    expect(screen.getByTestId("prereq-chain")).toBeTruthy();
     expect(screen.getByTestId("mock-output")).toHaveTextContent("MOCK output");
     expect(screen.getByTestId("exit-chip")).toHaveTextContent("exit 0");
     expect(screen.getByTestId("run-status")).toHaveTextContent(/Done/);
@@ -183,13 +185,13 @@ describe("running a command", () => {
 
   test("sections remember open/closed across renders", async () => {
     render(<App />);
-    const toggle = within(await screen.findByTestId("section-install")).getAllByRole("button")[0];
+    const toggle = within(await screen.findByTestId("section-configure")).getAllByRole("button")[0];
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(toggle);
-    expect(JSON.parse(localStorage.getItem("pingcli-lab.sectionOpen")).install).toBe(false);
+    expect(JSON.parse(localStorage.getItem("pingcli-lab.sectionOpen")).configure).toBe(false);
     cleanup();
     render(<App />);
-    expect(within(await screen.findByTestId("section-install")).getAllByRole("button")[0]).toHaveAttribute("aria-expanded", "false");
+    expect(within(await screen.findByTestId("section-configure")).getAllByRole("button")[0]).toHaveAttribute("aria-expanded", "false");
   });
 });
 
@@ -268,6 +270,99 @@ describe("review fixes (step 2)", () => {
     expect(a).toBe("w-same");
     expect(lone).toBe("w-lone");
     stopA(); stopB(); stopL();
+  });
+});
+
+describe("owner UI feedback (result placement, prereq chain, install collapsed)", () => {
+  const sectionOf = (el) => el.closest("[data-testid^='section-cat-']")?.dataset.testid;
+  const installToggle = async () => within(await screen.findByTestId("section-install")).getAllByRole("button")[0];
+
+  test("the result renders inside the run card's category section, and moves when a card in another category runs", async () => {
+    render(<App />);
+    await runUsers();
+    expect(sectionOf(screen.getByTestId("output"))).toBe("section-cat-identity-and-directory");
+    expect(within(screen.getByTestId("section-cat-identity-and-directory")).getByTestId("easy-table")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("run-config_list_keys"));
+    await waitFor(() => expect(sectionOf(screen.getByTestId("output"))).toBe("section-cat-platform-and-config"));
+    expect(screen.getAllByTestId("output")).toHaveLength(1);
+    expect(within(screen.getByTestId("section-cat-identity-and-directory")).queryByTestId("output")).toBeNull();
+    // Reset clears it wherever it is.
+    fireEvent.click(screen.getByTestId("reset"));
+    await waitFor(() => expect(screen.queryByTestId("output")).toBeNull());
+  });
+
+  test("the category holding the result stays open while the result is there", async () => {
+    render(<App />);
+    await runUsers();
+    const cat = screen.getByTestId("section-cat-identity-and-directory");
+    fireEvent.click(within(cat).getAllByRole("button")[0]);
+    expect(within(cat).getByTestId("output")).toBeTruthy();
+    expect(within(cat).getAllByRole("button")[0]).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("one compact chain, no second install block: links open sections 1 and 2, Copy copies the command", async () => {
+    const write = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: write } });
+    render(<App />);
+    await runUsers();
+    expect(screen.queryByTestId("section-prereqs")).toBeNull();
+    expect(screen.queryByText("What was needed to run this")).toBeNull();
+    const chain = screen.getByTestId("prereq-chain");
+    expect(chain.textContent).toMatch(/✓ installed \(simulated\)\s*→\s*✓ configured \(simulated\)\s*→\s*✓ authenticated \(simulated\)\s*→\s*▶ pingcli pingone api x -O json/);
+    expect(screen.getByTestId("chain-installed")).toHaveAttribute("href", "#section-install");
+    expect(screen.getByTestId("chain-configured")).toHaveAttribute("href", "#section-configure");
+    expect(screen.getByTestId("chain-authenticated")).toHaveAttribute("href", "#section-configure");
+    expect(await installToggle()).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getByTestId("chain-installed"));
+    await waitFor(async () => expect(await installToggle()).toHaveAttribute("aria-expanded", "true"));
+    fireEvent.click(screen.getByTestId("chain-copy"));
+    expect(write).toHaveBeenCalledWith("pingcli pingone api x -O json");
+    expect(screen.getByTestId("chain-copy")).toHaveTextContent("Copied!");
+  });
+
+  test("steps a command does not need are left out (version: installed then the command)", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByTestId("run-version"));
+    const chain = await screen.findByTestId("prereq-chain");
+    expect(screen.getByTestId("chain-installed")).toBeTruthy();
+    expect(screen.queryByTestId("chain-configured")).toBeNull();
+    expect(screen.queryByTestId("chain-authenticated")).toBeNull();
+    expect(chain.textContent).toMatch(/▶ pingcli --version/);
+  });
+
+  test("Install starts collapsed when a version is known, with the MOCK version chip in its header", async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId("pingcli-version")).toHaveTextContent("✓ pingcli 1.2.0 (MOCK)"));
+    expect(within(screen.getByTestId("section-install")).getByTestId("pingcli-version")).toBeTruthy();
+    expect(await installToggle()).toHaveAttribute("aria-expanded", "false");
+    expect(within(screen.getByTestId("section-install")).queryByText(/Trust the Ping Identity tap/)).toBeNull();
+  });
+
+  test("Install starts open when no version is known (binary missing / version call failed)", async () => {
+    server = fakeServer({ versionStatus: 503 }); vi.stubGlobal("fetch", server.fetch);
+    render(<App />);
+    await waitFor(() => expect(server.calls).toContain("GET /api/version"));
+    expect(await installToggle()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByTestId("pingcli-version")).toBeNull();
+  });
+
+  test("a remembered choice wins over the installed default", async () => {
+    localStorage.setItem("pingcli-lab.sectionOpen", JSON.stringify({ install: true }));
+    render(<App />);
+    await screen.findByTestId("pingcli-version");
+    expect(await installToggle()).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("Real: '✓ pingcli 1.2.0 installed'; a mismatch shows the warning chip in the Install header", async () => {
+    server = fakeServer({ version: { version: "1.2.0", source: "real", pinned: "1.2.0", matchesPinned: true } }); vi.stubGlobal("fetch", server.fetch);
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId("pingcli-version")).toHaveTextContent("✓ pingcli 1.2.0 installed"));
+    expect(screen.queryByTestId("version-mismatch")).toBeNull();
+    cleanup();
+    server = fakeServer({ version: { version: "1.1.0", source: "real", pinned: "1.2.0", matchesPinned: false } }); vi.stubGlobal("fetch", server.fetch);
+    render(<App />);
+    expect(await within(await screen.findByTestId("section-install")).findByTestId("version-mismatch")).toHaveTextContent("not the pinned 1.2.0");
+    expect(screen.getByTestId("pingcli-version")).toHaveTextContent("✓ pingcli 1.1.0 installed");
   });
 });
 

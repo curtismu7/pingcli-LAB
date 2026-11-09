@@ -53,9 +53,22 @@ try {
     expect(/Mia Fischer/.test(t), 'retail cast not in the table');
     expect(/exit 0/.test(await page.getByTestId('exit-chip').textContent()), 'no exit 0');
     expect(/MOCK output/.test(await page.getByTestId('mock-output').textContent()), 'output not labelled MOCK');
-    await page.getByTestId('section-prereqs').waitFor();
+    await page.getByTestId('prereq-chain').waitFor();
+    const where = await page.getByTestId('output').evaluate((el) => el.closest("[data-testid^='section-cat-']")?.dataset.testid);
+    expect(where === 'section-cat-identity-and-directory', `result rendered in ${where}`);
+    expect(await page.getByText('What was needed to run this').count() === 0, 'old prereqs panel still there');
   });
   await shot(page, 'desktop-light');
+
+  await check('a run in another category moves the one result panel there; Install is collapsed with its version chip', async () => {
+    await page.getByTestId('run-pingone_apps_list').click();
+    await page.getByTestId('easy-table').waitFor({ timeout: 15000 });
+    const where = await page.getByTestId('output').evaluate((el) => el.closest("[data-testid^='section-cat-']")?.dataset.testid);
+    expect(where === 'section-cat-applications-and-resources', `result rendered in ${where}`);
+    expect(await page.getByTestId('output').count() === 1, 'more than one result panel');
+    expect(/✓ pingcli 1\.2\.0 \(MOCK\)/.test(await page.getByTestId('pingcli-version').textContent()), 'no install chip');
+    expect((await page.locator('[data-testid=section-install] .collapse__toggle').getAttribute('aria-expanded')) === 'false', 'Install not collapsed');
+  });
 
   await check('flip Easy read / JSON', async () => {
     await page.getByTestId('view-json').click();
