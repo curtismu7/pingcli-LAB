@@ -72,6 +72,7 @@ export function createApp({
     res.json({
       mode, source: mode, simulated: mode === 'mock', realAvailable: runner !== null, realHowTo,
       banner: fill(BANNER[mode], cast), pinnedVersion: PINNED_VERSION,
+      version: (() => { try { return JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version || null; } catch { return null; } })(),
       // Never the client id or secret: only where Real points.
       real: realCfg ? { region: realCfg.region, rootDomain: realCfg.rootDomain } : null,
       signIn: 'none: this lab does not sign anyone in (no persona picker); the header shows the mode',

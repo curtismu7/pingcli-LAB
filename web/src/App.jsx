@@ -4,8 +4,7 @@ import StoryTab from "./components/StoryTab";
 import DiagramTab from "./components/DiagramTab";
 import TraceTab from "./components/TraceTab";
 import TalkTrack from "./components/TalkTrack";
-import ModeToggle from "./components/ModeToggle";
-import ThemeToggle from "./components/ThemeToggle";
+import TopMenu, { applyFontSize } from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { getJson, resetWorkspace, setMode } from "./api";
@@ -40,6 +39,17 @@ export default function App() {
   const [lastRun, setLastRun] = useState(null);
   const [focusKey, setFocusKey] = useState(null);
   const [switching, setSwitching] = useState(false);
+  const [theme, setTheme] = useState(() => { try { const t = localStorage.getItem("pingcli-lab.theme"); if (t === "dark" || t === "light") return t; } catch { /* blocked */ } return "auto"; });
+  const [fontStep, setFontStep] = useState(() => { try { const f = localStorage.getItem("pingcli-lab.font"); return ["S", "M", "L"].includes(f) ? f : "M"; } catch { return "M"; } });
+  useEffect(() => {
+    const dark = theme === "dark" || (theme === "auto" && window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+    if (dark) document.documentElement.dataset.theme = "dark"; else delete document.documentElement.dataset.theme;
+    if (theme !== "auto") { try { localStorage.setItem("pingcli-lab.theme", theme); } catch { /* blocked */ } }
+  }, [theme]);
+  useEffect(() => {
+    applyFontSize(fontStep);
+    try { localStorage.setItem("pingcli-lab.font", fontStep); } catch { /* blocked */ }
+  }, [fontStep]);
 
   const loadInfo = useCallback(() => getJson(`/api/info?vertical=${encodeURIComponent(vertical)}`).then(setInfo, () => setInfo(null)), [vertical]);
   useEffect(() => { loadInfo(); }, [loadInfo, dataSignal]);
@@ -93,10 +103,18 @@ export default function App() {
           {TABS.map((t) => <a key={t.id} href={`#${t.id}`} aria-current={tab === t.id ? "page" : undefined} data-testid={`nav-${t.id}`} onClick={(e) => { e.preventDefault(); go(t.id); }}>{t.label}</a>)}
         </nav>
         <span className="shell-right">
-          <ShelfLink />
-          <ModeToggle info={info} onSwitch={switchTo} busy={switching} />
-          <button type="button" aria-pressed={presenter} onClick={() => setPresenter((v) => !v)} data-testid="presenter">{presenter ? "Exit presenter" : "Presenter"}</button>
-          <ThemeToggle />
+          <TopMenu
+            mode={{ value: info?.mode === "real" ? "real" : "mock", onChange: switchTo, realAvailable: info ? info.realAvailable : null, realHint: info?.realHowTo || undefined }}
+            vertical={{ value: vertical, onChange: setVertical, options: story ? story.verticals : ["retail"] }}
+            theme={{ value: theme, onChange: setTheme }}
+            fontSize={{ value: fontStep, onChange: setFontStep }}
+            present={{ active: presenter, onToggle: () => setPresenter((v) => !v) }}
+            talkTrack={{ active: tab === "talk", onToggle: () => go("talk") }}
+            help={{ href: "https://github.com/curtismu7/pingcli-LAB#readme" }}
+            onReset={reset}
+          >
+            <ShelfLink />
+          </TopMenu>
         </span>
       </header>
       <main className="page">
@@ -111,7 +129,6 @@ export default function App() {
                 </select>
               </label>
             )}
-            <button type="button" className="danger-text" onClick={reset} data-testid="reset">Reset</button>
           </div>
         </div>
         <p className="sr-only" role="status" aria-live="polite">{notice}</p>

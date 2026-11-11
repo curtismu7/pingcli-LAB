@@ -83,25 +83,26 @@ describe("shell, banner and mode", () => {
 
   test("Real unconfigured: the Real button is disabled with the how-to as its tooltip, and the how-to card shows", async () => {
     render(<App />);
-    const real = await screen.findByTestId("mode-real");
+    await screen.findByTestId("mode-select");
+    const real = screen.getByTestId("mode-select").querySelector('option[value="real"]');
     expect(real).toBeDisabled();
     expect(real.getAttribute("title")).toMatch(/PINGONE_ENVIRONMENT_ID/);
-    expect(screen.getByTestId("mode-mock")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("mode-select")).toHaveValue("mock");
     expect(await screen.findByTestId("real-howto")).toHaveTextContent(/Real mode is not configured/);
   });
 
   test("the toggle switches both ways through POST /api/mode and reloads every panel's data", async () => {
     server = fakeServer({ realAvailable: true }); vi.stubGlobal("fetch", server.fetch);
     render(<App />);
-    const real = await screen.findByTestId("mode-real");
-    await waitFor(() => expect(real).not.toBeDisabled());
+    const select = await screen.findByTestId("mode-select");
+    await waitFor(() => expect(select.querySelector('option[value="real"]')).not.toBeDisabled());
     const before = server.calls.filter((c) => c === "GET /api/commands").length;
-    fireEvent.click(real);
+    fireEvent.change(select, { target: { value: "real" } });
     await waitFor(() => expect(screen.getByTestId("mode-badge").textContent).toBe("Real"));
     expect(server.calls).toContain("POST /api/mode");
     await waitFor(() => expect(server.calls.filter((c) => c === "GET /api/commands").length).toBeGreaterThan(before));
     expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
-    fireEvent.click(screen.getByTestId("mode-mock"));
+    fireEvent.change(screen.getByTestId("mode-select"), { target: { value: "mock" } });
     await waitFor(() => expect(screen.getByTestId("mode-badge").textContent).toBe("Mock"));
     expect(screen.getByTestId("banner")).not.toHaveAttribute("data-state");
   });
@@ -109,9 +110,9 @@ describe("shell, banner and mode", () => {
   test("a 409 from /api/mode is reported and the mode stays Mock", async () => {
     server = fakeServer({ realAvailable: true, refuseReal: true }); vi.stubGlobal("fetch", server.fetch);
     render(<App />);
-    const real = await screen.findByTestId("mode-real");
-    await waitFor(() => expect(real).not.toBeDisabled());
-    fireEvent.click(real);
+    const select = await screen.findByTestId("mode-select");
+    await waitFor(() => expect(select.querySelector('option[value="real"]')).not.toBeDisabled());
+    fireEvent.change(select, { target: { value: "real" } });
     expect(await screen.findByTestId("notice")).toHaveTextContent(/Real is not configured/);
     expect(screen.getByTestId("mode-badge").textContent).toBe("Mock");
     cleanup();
@@ -121,10 +122,10 @@ describe("shell, banner and mode", () => {
 
   test("theme toggle sets data-theme on <html> and remembers it", async () => {
     render(<App />);
-    await screen.findByTestId("mode-real");
-    const btn = screen.getByTestId("theme-toggle");
+    await screen.findByTestId("mode-select");
+    const select = screen.getByTestId("theme-select");
     const first = document.documentElement.dataset.theme;
-    fireEvent.click(btn);
+    fireEvent.change(select, { target: { value: document.documentElement.dataset.theme === "dark" ? "light" : "dark" } });
     expect(document.documentElement.dataset.theme).not.toBe(first);
     expect(localStorage.getItem("pingcli-lab.theme")).toBe(document.documentElement.dataset.theme);
   });
@@ -206,7 +207,7 @@ describe("review fixes (step 2)", () => {
     expect(screen.queryByTestId("view-easy")).toBeNull();
     expect(document.querySelector("header.shell-bar")).toBeTruthy();
     expect(screen.getByTestId("banner")).toBeTruthy();
-    expect(screen.getByTestId("mode-toggle")).toBeTruthy();
+    expect(screen.getByTestId("top-menu")).toBeTruthy();
   });
 
   test("a render failure in the output shows an error card and keeps the page (error boundary)", async () => {
@@ -287,7 +288,7 @@ describe("owner UI feedback (result placement, prereq chain, install collapsed)"
     expect(screen.getAllByTestId("output")).toHaveLength(1);
     expect(within(screen.getByTestId("section-cat-identity-and-directory")).queryByTestId("output")).toBeNull();
     // Reset clears it wherever it is.
-    fireEvent.click(screen.getByTestId("reset"));
+    fireEvent.click(screen.getAllByTestId("reset")[0]);
     await waitFor(() => expect(screen.queryByTestId("output")).toBeNull());
   });
 
@@ -379,7 +380,7 @@ describe("demo extras", () => {
     render(<App />);
     fireEvent.click(screen.getByTestId("nav-story"));
     expect(await screen.findByTestId("story")).toHaveTextContent("Northwind Retail");
-    fireEvent.change(screen.getByTestId("vertical"), { target: { value: "banking" } });
+    fireEvent.change(screen.getByTestId("vertical-select"), { target: { value: "banking" } });
     await waitFor(() => expect(screen.getByTestId("story")).toHaveTextContent("Fabrikam Bank"));
     expect(screen.getByTestId("story")).toHaveTextContent("UNVERIFIED");
     fireEvent.click(within(screen.getByTestId("scenario-who-is-in-the-directory")).getByRole("button"));
@@ -388,7 +389,7 @@ describe("demo extras", () => {
 
   test("presenter mode keeps the banner first and shows the talk track; Escape leaves", async () => {
     render(<App />);
-    await screen.findByTestId("mode-real");
+    await screen.findByTestId("mode-select");
     fireEvent.click(screen.getByTestId("presenter"));
     expect(document.querySelector(".app--presenter")).toBeTruthy();
     expect(document.querySelector("main.page").firstElementChild).toBe(screen.getByTestId("banner"));
@@ -400,7 +401,7 @@ describe("demo extras", () => {
   test("Reset calls the API, clears the run and the trace", async () => {
     render(<App />);
     await runUsers();
-    fireEvent.click(screen.getByTestId("reset"));
+    fireEvent.click(screen.getAllByTestId("reset")[0]);
     await waitFor(() => expect(server.calls).toContain("POST /api/reset"));
     await waitFor(() => expect(screen.queryByTestId("output")).toBeNull());
     fireEvent.click(screen.getByTestId("nav-trace"));
