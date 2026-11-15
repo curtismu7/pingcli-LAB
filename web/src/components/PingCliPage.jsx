@@ -11,6 +11,7 @@ import { visible } from "../safeText";
 import { getJson } from "../api";
 import { workspaceFetch } from "../workspace";
 import ErrorBoundary from "./ErrorBoundary";
+import Json, { setJsonView } from "./Json";
 
 // Client-side cap on how long a streamed run may take before it is aborted (as in the source page).
 export const RUN_TIMEOUT_MS = 30000;
@@ -173,19 +174,19 @@ export function parseSseBlock(block) {
   try { return { type: ev[1], payload: JSON.parse(data[1]) }; } catch { return null; }
 }
 
+// Keys that matter in pingcli output: did it work (status, message) and which accounts are switched off (enabled).
+const OUTPUT_HOT = ["status", "message", "enabled"];
+// The JSON view of one run: the shared JsonPane (Rule 24: Form | JSON, theme-token colours, full view). The caller only renders it
+// for output that tokenizeJson accepted (whole-text JSON, depth-bounded); anything else stays plain text in the terminal.
 function JsonView({ output }) {
-  const tokens = tokenizeJson(output);
-  let pretty = output;
+  let pretty = null;
   try { pretty = JSON.stringify(JSON.parse(output), null, 2); } catch { /* not JSON */ }
-  if (!tokens) return null;
+  if (pretty === null) return null;
   const lines = pretty.split("\n").length;
   return (
     <div className="editor" data-testid="json-view">
-      <div className="editor__bar"><span className="chip">JSON</span><span className="muted">{lines} lines</span><button type="button" onClick={() => copyToClipboard(pretty)}>Copy</button></div>
-      <div className="editor__content">
-        <div className="editor__lines" aria-hidden="true">{Array.from({ length: Math.min(lines, 20000) }, (_, i) => <span key={i}>{i + 1}</span>)}</div>
-        <pre className="editor__code" tabIndex={0} aria-label="Command output as JSON">{tokens.map((t, i) => (t.cls ? <span key={i} className={t.cls}>{visible(t.text)}</span> : visible(t.text)))}</pre>
-      </div>
+      <div className="editor__bar"><span className="muted">{lines} lines</span><button type="button" onClick={() => copyToClipboard(pretty)}>Copy</button></div>
+      <Json value={pretty} label="Command output as JSON" testId="output-json" hot={OUTPUT_HOT} />
     </div>
   );
 }
@@ -414,7 +415,7 @@ export default function PingCliPage({ info, vertical, dataSignal = 0, resetSigna
           {canEasyRead && (
             <div className="tabs" role="group" aria-label="Output view">
               <button type="button" aria-pressed={viewMode === "easy"} onClick={() => setViewMode("easy")} data-testid="view-easy">Easy read</button>
-              <button type="button" aria-pressed={viewMode === "json"} onClick={() => setViewMode("json")} data-testid="view-json">JSON</button>
+              <button type="button" aria-pressed={viewMode === "json"} onClick={() => { setJsonView("raw"); setViewMode("json"); }} data-testid="view-json">JSON</button>
             </div>
           )}
           <ErrorBoundary resetKey={runSeq} title="This output could not be shown" testId="output-error">

@@ -73,7 +73,7 @@ try {
   await check('flip Easy read / JSON', async () => {
     await page.getByTestId('view-json').click();
     await page.getByTestId('json-view').waitFor();
-    expect(await page.locator('[data-testid=json-view] .j-key').count() > 0, 'no highlighted keys');
+    expect(await page.locator('[data-testid=json-view] .jtok--key').count() > 0, 'no highlighted keys');
     await page.getByTestId('view-easy').click();
     await page.getByTestId('easy-table').waitFor();
   });
