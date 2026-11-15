@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import App, { BANNER_UNKNOWN } from "./App";
 import { parseSseBlock } from "./components/PingCliPage";
 import ModeToggle from "./components/ModeToggle";
+import { setJsonView } from "./components/Json";
 
 // A fake lab server: just enough of /api for the page, with SSE runs built from a script of frames.
 const USERS = JSON.stringify({ schemaVersion: "1.1", status: "success", message: "Custom request successful", data: { _embedded: { users: [
@@ -54,6 +55,7 @@ function fakeServer({ realAvailable = false, runText = USERS, trailing = true, r
 
 beforeEach(() => {
   localStorage.clear();
+  setJsonView("form"); // the Form | JSON choice is shared module state: every test starts on Form
   window.location.hash = "";
   delete document.documentElement.dataset.theme;
   server = fakeServer();
@@ -144,8 +146,56 @@ describe("running a command", () => {
     expect(table).toHaveTextContent("2 items");
     fireEvent.click(screen.getByTestId("view-json"));
     const json = screen.getByTestId("json-view");
-    expect(json.querySelector(".j-key")).toBeTruthy();
     expect(screen.getByTestId("view-json")).toHaveAttribute("aria-pressed", "true");
+    // The JSON view is the shared JsonPane (Rule 24): the lab's JSON button lands on the JSON text, coloured by part.
+    expect(json.querySelector(".jtok--key")).toBeTruthy();
+    expect(json.querySelector(".jtok--string")).toBeTruthy();
+    expect(screen.getByTestId("output-json").tagName).toBe("PRE");
+    expect(screen.getByTestId("output-json").textContent).toBe(USERS);
+  });
+
+  test("the JSON view is a JsonPane: Form | JSON toggle, this lab's important keys stand out in both views, no scroll box", async () => {
+    render(<App />);
+    await runUsers();
+    fireEvent.click(screen.getByTestId("view-json"));
+    const box = screen.getByTestId("output-json-box");
+    expect(within(box).getAllByRole("button").map((b) => b.textContent)).toEqual(["Form", "JSON"]);
+    // JSON view: status, message and enabled carry the important mark
+    const hotKeys = [...screen.getByTestId("output-json").querySelectorAll(".jtok--hot")].map((n) => n.textContent);
+    expect(hotKeys).toEqual(expect.arrayContaining(['"status"', '"message"', '"enabled"']));
+    // Form view: a label and a value per field; the same keys are marked
+    fireEvent.click(screen.getByTestId("output-json-formatted"));
+    const form = screen.getByTestId("output-json");
+    expect(form.className).toContain("json--form");
+    const hotRows = [...form.querySelectorAll('.jform__row[data-hot="true"] > .jform__k')].map((n) => n.textContent);
+    expect(hotRows).toEqual(expect.arrayContaining(["status", "message", "enabled"]));
+    expect(form).toHaveTextContent("mia.fischer@northwind.example");
+    for (const el of [box, form]) expect(el.getAttribute("style")).toBeNull(); // no inline max-height / overflow
+    expect(document.querySelector(".editor__content, .editor__lines, .editor__code")).toBeNull();
+  });
+
+  test("the lab's JSON button after Form was chosen shows the JSON text again", async () => {
+    render(<App />);
+    await runUsers();
+    fireEvent.click(screen.getByTestId("view-json"));
+    fireEvent.click(screen.getByTestId("output-json-formatted"));
+    expect(screen.getByTestId("output-json").className).toContain("json--form");
+    fireEvent.click(screen.getByTestId("view-easy"));
+    fireEvent.click(screen.getByTestId("view-json"));
+    expect(screen.getByTestId("output-json").className).toContain("json--raw");
+  });
+
+  test("output that is not whole-text JSON stays plain terminal text: no JsonPane, markup inert (CLI noise around JSON, a mid-stream half)", async () => {
+    for (const text of ['notice: config loaded\n{"status":"success","data":[]}\n', '{"status":"succ']) {
+      cleanup();
+      server = fakeServer({ runText: text }); vi.stubGlobal("fetch", server.fetch);
+      render(<App />);
+      fireEvent.click(await screen.findByTestId("run-pingone_users_list"));
+      await waitFor(() => expect(screen.getByTestId("exit-chip")).toHaveTextContent("exit 0"));
+      if (screen.queryByTestId("view-json")) fireEvent.click(screen.getByTestId("view-json"));
+      expect(screen.getByTestId("raw-output").textContent).toBe(text);
+      expect(document.querySelector(".jsonbox")).toBeNull();
+    }
   });
 
   test("the trailing done frame without a final blank line is still applied (flush)", async () => {
