@@ -6,6 +6,7 @@ import TraceTab from "./components/TraceTab";
 import TalkTrack from "./components/TalkTrack";
 import TopMenu, { applyFontSize } from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink";
+import VerifyMark from "./components/VerifyMark.jsx";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { getJson, resetWorkspace, setMode } from "./api";
 
@@ -114,6 +115,7 @@ export default function App() {
             onReset={reset}
           >
             <ShelfLink />
+            <VerifyMark id="pingcli-lab" />
           </TopMenu>
         </span>
       </header>
