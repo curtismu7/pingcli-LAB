@@ -97,7 +97,7 @@ export function RealHowTo({ info }) {
       <h3>Real mode is not configured</h3>
       <p><span className="chip chip--info"><span className="dot" aria-hidden="true" />Mock</span> {info.realHowTo || "Real is not configured. Mock keeps working."}</p>
       <ol>
-        <li>Put <code>PINGONE_ENVIRONMENT_ID</code>, <code>PINGONE_REGION</code>, <code>PINGONE_CLIENT_ID</code> and <code>PINGONE_CLIENT_SECRET</code> (a worker app with read roles) in <code>~/Development/.env</code>.</li>
+        <li>Put <code>PINGONE_ENVIRONMENT_ID</code>, <code>PINGONE_REGION</code>, <code>PINGONE_WORKER_CLIENT_ID</code> and <code>PINGONE_WORKER_CLIENT_SECRET</code> (a worker app with read roles; the names <code>scripts/pingone-setup.sh</code> writes, and the older <code>PINGONE_CLIENT_ID</code> / <code>PINGONE_CLIENT_SECRET</code> still work) in <code>~/Development/.env</code>.</li>
         <li>Host: point <code>PINGCLI_BIN</code> at pingcli 1.2.0, or put it on PATH. Docker: <code>npm run docker:up</code> passes the four settings through (the image bakes pingcli 1.2.0).</li>
         <li>Restart the lab, then press Real in the header. The secret is write-only: never shown, logged or returned.</li>
       </ol>

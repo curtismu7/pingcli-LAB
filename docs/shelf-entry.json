@@ -10,7 +10,7 @@
       "composeFile": "pingcli-LAB/docker-compose.yml",
       "composeOverlays": [],
       "pingProducts": [],
-      "notes": "Host-run: ./scripts/run.sh (port 7806). Docker: docker compose up --build -d (published on 127.0.0.1 only). Mock needs no tenant and no credentials. Real: PINGONE_ENVIRONMENT_ID, PINGONE_REGION, PINGONE_CLIENT_ID, PINGONE_CLIENT_SECRET in ~/Development/.env (host) or passed through compose (Docker). Derived from the AI-DEMO2 /pingcli page. Catalog id D126 (owner, 2026-11-09).",
+      "notes": "Host-run: ./scripts/run.sh (port 7806). Docker: docker compose up --build -d (published on 127.0.0.1 only). Mock needs no tenant and no credentials. Real: PINGONE_ENVIRONMENT_ID, PINGONE_REGION, PINGONE_WORKER_CLIENT_ID, PINGONE_WORKER_CLIENT_SECRET (what scripts/pingone-setup.sh writes; the older PINGONE_CLIENT_ID / PINGONE_CLIENT_SECRET still work) in ~/Development/.env (host) or passed through compose (Docker); the pingcli binary is baked into the image, on the host set PINGCLI_BIN. Derived from the AI-DEMO2 /pingcli page. Catalog id D126 (owner, 2026-11-09).",
       "repo": "https://github.com/curtismu7/pingcli-LAB",
       "catalogId": "D126",
       "alsoCatalogIds": [],

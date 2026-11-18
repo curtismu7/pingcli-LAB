@@ -30,7 +30,7 @@ Shared code vendored, never imported: `web/src/evidence/` and `server/src/vendor
 
 **Real (owner-run).** Runs the real `pingcli` binary against your own PingOne environment with worker client credentials:
 
-- Settings: `PINGONE_ENVIRONMENT_ID`, `PINGONE_REGION` (NA, EU, CA, AP/ASIA, AU, SG), `PINGONE_CLIENT_ID`, `PINGONE_CLIENT_SECRET`, read from the one settings file `~/Development/.env` (or `STANDALONE_ENV`), or from the process environment (Docker: compose passes them through from your shell or an `.env` beside the compose file; never baked, never committed).
+- Settings: `PINGONE_ENVIRONMENT_ID`, `PINGONE_REGION` (NA, EU, CA, AP/ASIA, AU, SG), `PINGONE_WORKER_CLIENT_ID`, `PINGONE_WORKER_CLIENT_SECRET` (the names `scripts/pingone-setup.sh` writes; the older `PINGONE_CLIENT_ID` / `PINGONE_CLIENT_SECRET` are read as a documented fallback so an existing file keeps working, and the WORKER names win), read from the one settings file `~/Development/.env` (or `STANDALONE_ENV`), or from the process environment (Docker: compose passes them through from your shell or an `.env` beside the compose file; never baked, never committed).
 - Binary: the Docker image bakes pingcli 1.2.0 (sha256-pinned). On the host set `PINGCLI_BIN` to its absolute path or put `pingcli` on PATH.
 - The client secret is write-only: never returned, shown, logged or put in a label. See `docs/safety.md` for the private profile, scrubbing, timeouts and limits.
 
@@ -54,8 +54,8 @@ Open http://127.0.0.1:7806/ (the server serves the built page itself). `GET /api
 ## Run
 
 - Host: `./scripts/run.sh` (Node 26+), then open http://localhost:7806/.
-- Docker (OrbStack): `docker compose up --build -d`, published on `127.0.0.1:7806` only (Mock unless the four settings are in your shell).
-- Docker with Real: `npm run docker:up` (`scripts/compose-real.mjs`) passes the four `PINGONE_*` settings from `~/Development/.env` (or `STANDALONE_ENV`; a value already in your shell wins) to `docker compose` through its environment only. It prints which keys are set, never a value, and writes nothing.
+- Docker (OrbStack): `docker compose up --build -d`, published on `127.0.0.1:7806` only (Mock unless the four settings are in your shell or in an `.env` beside the compose file).
+- Docker with Real: `npm run docker:up` (`scripts/compose-real.mjs`) passes the four settings (`PINGONE_ENVIRONMENT_ID`, `PINGONE_REGION`, `PINGONE_WORKER_CLIENT_ID`, `PINGONE_WORKER_CLIENT_SECRET`) from `~/Development/.env` (or `STANDALONE_ENV`; a value already in your shell wins) to `docker compose` through its environment only. It prints which keys are set, never a value, and writes nothing.
 - Test: `npm test` (server: `node --test test/*.test.js`, a glob; web: vitest; scripts: `node --test scripts/*.test.mjs`). Browser check: start the lab, then `npm run e2e` (Playwright headless Chromium; `npx playwright install chromium-headless-shell` once; `SHOT_DIR=` saves screenshots). Preflight: `npm run doctor`. Reset: `npm run reset`. Talk track: `npm run talk-track`. Content pack: `npm run content-pack`.
 
 ## API
