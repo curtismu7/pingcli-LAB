@@ -69,7 +69,7 @@ test('the pingcli binary is pinned to 1.2.0 and verified by sha256 for both arch
 
 test('Real settings are passed through from the shell with empty defaults: never a committed value, never baked', () => {
   const compose = here('docker-compose.yml');
-  for (const name of ['PINGONE_ENVIRONMENT_ID', 'PINGONE_REGION', 'PINGONE_CLIENT_ID', 'PINGONE_CLIENT_SECRET']) {
+  for (const name of ['PINGONE_ENVIRONMENT_ID', 'PINGONE_REGION', 'PINGONE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_SECRET', 'PINGONE_CLIENT_ID', 'PINGONE_CLIENT_SECRET']) {
     assert.match(compose, new RegExp(`^      ${name}: \\$\\{${name}:-\\}$`, 'm'), `${name} defaults to empty`);
     assert.doesNotMatch(here('Dockerfile'), new RegExp(name), `${name} is not in the image`);
   }

@@ -21,6 +21,9 @@ services:
       # never baked into the image. Empty = Real stays disabled and Mock runs.
       PINGONE_ENVIRONMENT_ID: ${PINGONE_ENVIRONMENT_ID:-}
       PINGONE_REGION: ${PINGONE_REGION:-}
+      PINGONE_WORKER_CLIENT_ID: ${PINGONE_WORKER_CLIENT_ID:-}
+      PINGONE_WORKER_CLIENT_SECRET: ${PINGONE_WORKER_CLIENT_SECRET:-}
+      # The older names, still read as a fallback (the WORKER names win).
       PINGONE_CLIENT_ID: ${PINGONE_CLIENT_ID:-}
       PINGONE_CLIENT_SECRET: ${PINGONE_CLIENT_SECRET:-}
     read_only: true
