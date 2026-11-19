@@ -63,7 +63,7 @@ export function CollapsibleSection({ id, title, defaultOpen = true, children, fo
   const H = level === 3 ? "h3" : "h2";
   return (
     <section ref={ref} id={`section-${id}`} className={`collapse${shown ? " is-open" : ""}`} data-testid={`section-${id}`}>
-      <H className="collapse__heading">
+      <H className="collapse__heading" data-n={title.match(/^(\d+)\./)?.[1]}>
         <button type="button" className="collapse__toggle" aria-expanded={shown} aria-controls={`section-body-${id}`} onClick={toggle}>
           <span aria-hidden="true">{shown ? "▾" : "▸"}</span> {title}
         </button>
