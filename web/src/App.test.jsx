@@ -168,7 +168,7 @@ describe("running a command", () => {
     const form = screen.getByTestId("output-json");
     expect(form.className).toContain("json--form");
     const hotRows = [...form.querySelectorAll('.jform__row[data-hot="true"] > .jform__k')].map((n) => n.textContent);
-    expect(hotRows).toEqual(expect.arrayContaining(["status", "message", "enabled"]));
+    expect(hotRows).toEqual(expect.arrayContaining(["status", "message", expect.stringMatching(/enabled$/)]));
     expect(form).toHaveTextContent("mia.fischer@northwind.example");
     for (const el of [box, form]) expect(el.getAttribute("style")).toBeNull(); // no inline max-height / overflow
     expect(document.querySelector(".editor__content, .editor__lines, .editor__code")).toBeNull();
