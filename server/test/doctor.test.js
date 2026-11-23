@@ -25,7 +25,7 @@ test('MODE other than mock/real fails the doctor, Real without settings is refus
   assert.equal(real.level, 'pass');
   assert.match(real.detail, /mode=real.*Real configured/);
   const all = JSON.stringify(checks);
-  for (const k of ['PINGONE_CLIENT_SECRET', 'PINGONE_CLIENT_ID', 'PINGONE_ENVIRONMENT_ID']) assert.ok(!all.includes(FAKE[k]), k);
+  for (const k of ['PINGONE_WORKER_CLIENT_SECRET', 'PINGONE_WORKER_CLIENT_ID', 'PINGONE_ENVIRONMENT_ID']) assert.ok(!all.includes(FAKE[k]), k);
 });
 
 test('a scenario that stops showing what it claims is caught by the doctor', async () => {

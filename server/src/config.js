@@ -6,7 +6,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const SETTING_KEYS = ['PINGONE_ENVIRONMENT_ID', 'PINGONE_REGION', 'PINGONE_CLIENT_ID', 'PINGONE_CLIENT_SECRET'];
+// The worker client is PINGONE_WORKER_CLIENT_ID / PINGONE_WORKER_CLIENT_SECRET: the names scripts/pingone-setup.sh writes. The
+// older PINGONE_CLIENT_ID / PINGONE_CLIENT_SECRET are still read as a fallback so an existing file keeps working; the WORKER name wins.
+export const SETTING_KEYS = ['PINGONE_ENVIRONMENT_ID', 'PINGONE_REGION', 'PINGONE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_SECRET'];
+export const FALLBACK_KEYS = Object.freeze({ PINGONE_WORKER_CLIENT_ID: 'PINGONE_CLIENT_ID', PINGONE_WORKER_CLIENT_SECRET: 'PINGONE_CLIENT_SECRET' });
+const READ_KEYS = [...SETTING_KEYS, ...Object.values(FALLBACK_KEYS)];
 
 // PINGONE_REGION -> pingcli rootDomain. Anything else is refused, never guessed.
 export const REGION_DOMAINS = Object.freeze({ NA: 'pingone.com', EU: 'pingone.eu', CA: 'pingone.ca', AP: 'pingone.asia', ASIA: 'pingone.asia', AU: 'pingone.com.au', SG: 'pingone.sg' });
@@ -15,14 +19,14 @@ const CLIENT_ID = /^[A-Za-z0-9._-]{8,128}$/;
 
 export const settingsFilePath = (env = process.env) => env.STANDALONE_ENV || path.join(env.HOME || '', 'Development', '.env');
 
-// Reads ONLY the four PingOne keys from a dotenv file. Never loads the file into process.env, never logs a value.
+// Reads ONLY the PingOne keys (the four settings and the two older client names) from a dotenv file. Never loads the file into process.env, never logs a value.
 export function readSettingsFile(file) {
   const out = {};
   let text;
   try { text = fs.readFileSync(file, 'utf8'); } catch { return out; }
   for (const line of text.split(/\r?\n/)) {
     const m = /^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/.exec(line);
-    if (!m || !SETTING_KEYS.includes(m[1])) continue;
+    if (!m || !READ_KEYS.includes(m[1])) continue;
     let v = m[2].trim();
     if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
     else v = v.replace(/\s+#.*$/, '');
@@ -31,10 +35,12 @@ export function readSettingsFile(file) {
   return out;
 }
 
-// The effective settings: a non-empty process env value wins over the file.
+// The effective settings, keyed by the four SETTING_KEYS names: a non-empty process env value wins over the file, and within one
+// source the PINGONE_WORKER_* name wins over the older PINGONE_CLIENT_* name.
 export function settingsFrom(env = process.env, file = settingsFilePath(env)) {
   const fromFile = file ? readSettingsFile(file) : {};
-  return Object.fromEntries(SETTING_KEYS.map((k) => [k, env[k] ? String(env[k]) : (fromFile[k] || '')]));
+  const pick = (src, k) => (src[k] ? String(src[k]) : (FALLBACK_KEYS[k] && src[FALLBACK_KEYS[k]] ? String(src[FALLBACK_KEYS[k]]) : ''));
+  return Object.fromEntries(SETTING_KEYS.map((k) => [k, pick(env, k) || pick(fromFile, k)]));
 }
 
 // Is a pingcli binary there? PINGCLI_BIN (an absolute path to an executable file) or `pingcli` on PATH.
@@ -50,11 +56,11 @@ export function binaryFrom(env = process.env) {
 // Why Real is unavailable, in words the toggle's tooltip can show (never a value). null when Real is usable.
 export function realProblemFrom(settings, bin) {
   const missing = SETTING_KEYS.filter((k) => !settings[k]);
-  if (missing.length) return `Real needs ${missing.join(', ')} in ~/Development/.env (or STANDALONE_ENV, or the Docker environment). Mock keeps working.`;
+  if (missing.length) return `Real needs ${missing.join(', ')} in ~/Development/.env (or STANDALONE_ENV, or the Docker environment; the older PINGONE_CLIENT_ID / PINGONE_CLIENT_SECRET names also work). Mock keeps working.`;
   if (!UUID.test(settings.PINGONE_ENVIRONMENT_ID)) return 'PINGONE_ENVIRONMENT_ID must be a UUID. Mock keeps working.';
   if (!Object.hasOwn(REGION_DOMAINS, settings.PINGONE_REGION.toUpperCase())) return `PINGONE_REGION must be one of ${Object.keys(REGION_DOMAINS).join(', ')}. Mock keeps working.`;
-  if (!CLIENT_ID.test(settings.PINGONE_CLIENT_ID)) return 'PINGONE_CLIENT_ID is not a plain client id. Mock keeps working.';
-  if (settings.PINGONE_CLIENT_SECRET.length < 8 || /[\u0000-\u001f\u007f]/.test(settings.PINGONE_CLIENT_SECRET)) return 'PINGONE_CLIENT_SECRET is too short or has control characters. Mock keeps working.';
+  if (!CLIENT_ID.test(settings.PINGONE_WORKER_CLIENT_ID)) return 'PINGONE_WORKER_CLIENT_ID is not a plain client id. Mock keeps working.';
+  if (settings.PINGONE_WORKER_CLIENT_SECRET.length < 8 || /[\u0000-\u001f\u007f]/.test(settings.PINGONE_WORKER_CLIENT_SECRET)) return 'PINGONE_WORKER_CLIENT_SECRET is too short or has control characters. Mock keeps working.';
   if (!bin) return 'Real needs the pingcli binary: the Docker image bakes it; on the host set PINGCLI_BIN to its absolute path or put pingcli on PATH. Mock keeps working.';
   return null;
 }
@@ -67,8 +73,8 @@ export function realConfigFrom(settings, bin) {
     envId: settings.PINGONE_ENVIRONMENT_ID.toLowerCase(),
     region: settings.PINGONE_REGION.toUpperCase(),
     rootDomain: REGION_DOMAINS[settings.PINGONE_REGION.toUpperCase()],
-    clientId: settings.PINGONE_CLIENT_ID,
-    clientSecret: settings.PINGONE_CLIENT_SECRET,
+    clientId: settings.PINGONE_WORKER_CLIENT_ID,
+    clientSecret: settings.PINGONE_WORKER_CLIENT_SECRET,
   };
 }
 

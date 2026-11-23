@@ -12,8 +12,8 @@ import { FAKE, isAlive, newTmpRoot, post, readSse, realEnv, sleep, stubBin, wait
 
 const readSseText = (text) => readSse({ text: async () => text });
 
-const SECRET = FAKE.PINGONE_CLIENT_SECRET;
-const CLIENT = FAKE.PINGONE_CLIENT_ID;
+const SECRET = FAKE.PINGONE_WORKER_CLIENT_SECRET;
+const CLIENT = FAKE.PINGONE_WORKER_CLIENT_ID;
 const noSecrets = (text, what) => { assert.ok(!text.includes(SECRET), `${what}: secret leaked`); assert.ok(!text.includes(CLIENT), `${what}: client id leaked`); };
 
 // Captures everything the process logs while fn runs.

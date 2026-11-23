@@ -56,8 +56,8 @@ export function rawHttp(url, { method = 'GET', headers = {}, body } = {}) {
 export const FAKE = Object.freeze({
   PINGONE_ENVIRONMENT_ID: '00000000-0000-4000-8000-0000000000e1',
   PINGONE_REGION: 'NA',
-  PINGONE_CLIENT_ID: 'fake-client-id-0001',
-  PINGONE_CLIENT_SECRET: 'FAKE-SECRET-do-not-leak-7f3a9c',
+  PINGONE_WORKER_CLIENT_ID: 'fake-client-id-0001',
+  PINGONE_WORKER_CLIENT_SECRET: 'FAKE-SECRET-do-not-leak-7f3a9c',
 });
 export function stubBin(kind = 'echo') {
   const p = fileURLToPath(new URL(`./fixtures/stub-pingcli-${kind}.mjs`, import.meta.url));
