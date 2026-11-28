@@ -195,7 +195,7 @@ test('GET /api/version in Mock is a labelled mock version; story and diagram loa
     assert.equal(v.source, 'mock'); assert.match(v.note, /MOCK/);
     const s = await (await fetch(`${url}/api/story?vertical=healthcare`)).json();
     assert.match(s.intro, /Contoso Health/);
-    assert.deepEqual(s.verticals, ['banking', 'healthcare', 'retail']);
+    assert.deepEqual(s.verticals, ['banking', 'healthcare', 'retail', 'airlines']);
     assert.ok(!JSON.stringify(s).includes('{{'));
     assert.equal(s.cast.seed, undefined, 'the seed lists stay server-side');
     const d = await (await fetch(`${url}/api/diagram?vertical=banking`)).json();
@@ -203,7 +203,7 @@ test('GET /api/version in Mock is a labelled mock version; story and diagram loa
     assert.ok(d.steps.length >= 5);
     assert.ok(!JSON.stringify(d).includes('{{'));
     const odd = await (await fetch(`${url}/api/story?vertical=__proto__`)).json();
-    assert.match(odd.intro, /Northwind/, 'unknown vertical -> default');
+    assert.match(odd.intro, /AirGuard Airlines/, 'unknown vertical -> default');
   });
 });
 

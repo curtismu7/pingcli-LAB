@@ -80,3 +80,11 @@ test('verticals differ; mock UUIDs are stable and v4-shaped; chunks rejoin exact
   assert.equal(chunks.join(''), text);
   assert.deepEqual(mockChunks('short\n'), ['short\n']);
 });
+
+test('the default (airlines) Mock directory is the AirGuard Airlines cast', () => {
+  const j = JSON.parse(mockOutput('pingone_users_list', VERTICALS.airlines).text).data._embedded.users;
+  assert.equal(j[0].name.formatted, 'Emma Hartley');
+  assert.match(j[0].email, /^emma\.hartley@airguard\.example$/);
+  const envs = JSON.parse(mockOutput('pingone_envs_list', VERTICALS.airlines).text).data;
+  assert.equal(envs[0].name, 'AirGuard Passenger Access');
+});

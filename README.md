@@ -15,7 +15,7 @@ Derived from the AI-DEMO2 /pingcli page (read-only source, never imported). Scaf
 One page with five tabs in the Ping UI standard (dark shell bar with the Ping Red rule, the simulation banner first on every tab and in presenter mode, Mock/Real toggle and theme toggle in the header, usable at 375px):
 
 - **Commands**: the AI-DEMO2 page ported: Install, Configure and authenticate, How to run (collapsible, remembered), command cards by category with Copy and Run; the result opens right under the category of the card that was run, with a run status, one line showing what the command needed (installed → configured → authenticated → the command, each linking back to its section; Install starts collapsed once pingcli answers with a version), Easy read (table or form) vs JSON (the shared JsonPane: a Form | JSON toggle, colored by part, important keys stood out, full view with no scrolling). When Real is not configured, a how-to replaces the source page's sign-in prompt.
-- **Story**: the vertical picker (banking, healthcare, retail), scenarios that open their command, and every claim with its status.
+- **Story**: the vertical picker (airlines, the default, then banking, healthcare, retail), scenarios that open their command, and every claim with its status.
 - **Diagram**: `pingcli-flow` loaded by name from diagram-studio data (movable boxes, Simulate, speed, Reset positions).
 - **Trace**: the last run's hops in the shared evidence screens (sequence view, movie reel, step detail) with raw request/response and `traceparent`; Mock hops and tokens are labelled MOCK, Real redacts tokens.
 - **Talk track**, presenter mode (P / Esc) and Reset (stops the run, clears output and trace, restores diagram positions).
@@ -26,7 +26,7 @@ Shared code vendored, never imported: `web/src/evidence/` and `server/src/vendor
 
 ## Modes (rule 19: Mock, Real and a runtime toggle)
 
-**Mock (the default when Real is not configured; no tenant, no credentials, no network).** No binary runs. Every command plays canned output shaped like pingcli 1.2.0 output, flavoured by the chosen vertical (banking, healthcare, retail), with made-up UUIDs and `.example` hosts, streamed in a few chunks so it feels live. Every response says `source: "mock"`, and the token request is simulated.
+**Mock (the default when Real is not configured; no tenant, no credentials, no network).** No binary runs. Every command plays canned output shaped like pingcli 1.2.0 output, flavoured by the chosen vertical (airlines, the default: AirGuard Airlines, a fictional airline; banking; healthcare; retail), with made-up UUIDs and `.example` hosts, streamed in a few chunks so it feels live. Every response says `source: "mock"`, and the token request is simulated.
 
 **Real (owner-run).** Runs the real `pingcli` binary against your own PingOne environment with worker client credentials:
 
