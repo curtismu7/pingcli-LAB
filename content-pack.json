@@ -216,32 +216,32 @@
     {
       "id": "S01",
       "title": "Check the tool",
-      "say": "Before Jordan Ellis automates anything, they check which Ping CLI build is installed: the version pins what the commands and output shapes look like."
+      "say": "Before Priya Nair automates anything, they check which Ping CLI build is installed: the version pins what the commands and output shapes look like."
     },
     {
       "id": "S02",
       "title": "What can be configured",
-      "say": "Every setting pingcli reads has a key. The worker client id, secret, environment id and root domain are the four that matter for Northwind Storefront."
+      "say": "Every setting pingcli reads has a key. The worker client id, secret, environment id and root domain are the four that matter for AirGuard Passenger Access."
     },
     {
       "id": "S03",
       "title": "Where am I",
-      "say": "With a token, Jordan Ellis lists the environments the worker can see, and finds Northwind Storefront and its sandbox."
+      "say": "With a token, Priya Nair lists the environments the worker can see, and finds AirGuard Passenger Access and its sandbox."
     },
     {
       "id": "S04",
       "title": "Who is in the directory",
-      "say": "The users of Northwind Retail come back as JSON a script can filter: name, username, email, enabled."
+      "say": "The users of AirGuard Airlines come back as JSON a script can filter: name, username, email, enabled."
     },
     {
       "id": "S05",
       "title": "What apps exist",
-      "say": "The applications registered for Northwind Retail: web, mobile, single-page and the worker this lab itself uses."
+      "say": "The applications registered for AirGuard Airlines: web, mobile, single-page and the worker this lab itself uses."
     },
     {
       "id": "S06",
       "title": "How people sign in",
-      "say": "Sign-on policies decide how Northwind Retail users authenticate; the default is the one most people hit."
+      "say": "Sign-on policies decide how AirGuard Airlines users authenticate; the default is the one most people hit."
     },
     {
       "id": "S07",
@@ -251,7 +251,7 @@
     {
       "id": "S08",
       "title": "Hand it to an agent",
-      "say": "Ping CLI ships agent skills: instructions a coding agent can load so it drives pingcli for Jordan Ellis correctly."
+      "say": "Ping CLI ships agent skills: instructions a coding agent can load so it drives pingcli for Priya Nair correctly."
     }
   ]
 }

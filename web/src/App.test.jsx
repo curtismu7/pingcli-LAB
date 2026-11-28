@@ -7,8 +7,8 @@ import { setJsonView } from "./components/Json";
 
 // A fake lab server: just enough of /api for the page, with SSE runs built from a script of frames.
 const USERS = JSON.stringify({ schemaVersion: "1.1", status: "success", message: "Custom request successful", data: { _embedded: { users: [
-  { id: "u-1", username: "mia.fischer", email: "mia.fischer@northwind.example", enabled: true, name: { formatted: "Mia Fischer" } },
-  { id: "u-2", username: "leo.haddad", email: "leo.haddad@northwind.example", enabled: false, name: { formatted: "Leo Haddad" } },
+  { id: "u-1", username: "emma.hartley", email: "emma.hartley@airguard.example", enabled: true, name: { formatted: "Emma Hartley" } },
+  { id: "u-2", username: "noah.reyes", email: "noah.reyes@airguard.example", enabled: false, name: { formatted: "Noah Reyes" } },
 ] } } }, null, 2);
 const HOPS = [
   { n: 1, kind: "pingcli-run-request", from: "browser", to: "lab", verdict: "ok", mock: true, traceparent: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01", title: "Run request", narrative: "The page asks the lab", fact: "one allow-listed key", spec: { none: true, why: "w", failure: "f" }, request: { method: "GET", url: "/api/stream?commandKey=pingone_users_list" }, response: { status: 200 } },
@@ -19,7 +19,7 @@ const COMMANDS = [
   { key: "config_list_keys", title: "Config keys", category: "Platform and config", label: "pingcli config list-keys", runnable: true, auth: false, prereqs: [{ title: "Install PingCLI", command: "brew install pingidentity/tap/pingcli" }, { title: "Configure credentials", command: "pingcli init" }, { title: "Run command", command: "pingcli config list-keys" }] },
   { key: "version", title: "Version", category: "Platform and config", label: "pingcli --version", runnable: true, auth: false, prereqs: [{ title: "Install PingCLI", command: "brew install pingidentity/tap/pingcli" }, { title: "Run command", command: "pingcli --version" }] },
 ];
-const STORY = (v) => ({ intro: `${v === "banking" ? "Dana Okafor at Fabrikam Bank" : "Jordan Ellis at Northwind Retail"} automates PingOne.`, verticals: ["banking", "healthcare", "retail"], scenarios: [{ id: "who-is-in-the-directory", title: "Who is in the directory", commandKey: "pingone_users_list", say: "Users of the org", lesson: "JSON a script can use" }], facts: [{ id: "f", status: "UNVERIFIED", text: "shapes are illustrative" }], talkTrack: [{ title: "Open", say: "Say this first." }, { title: "Follow the hops", say: "Open the hops." }], tokenLabel: "MOCK" });
+const STORY = (v) => ({ intro: `${v === "banking" ? "Dana Okafor at Fabrikam Bank" : "Priya Nair at AirGuard Airlines"} automates PingOne.`, verticals: ["banking", "healthcare", "retail", "airlines"], scenarios: [{ id: "who-is-in-the-directory", title: "Who is in the directory", commandKey: "pingone_users_list", say: "Users of the org", lesson: "JSON a script can use" }], facts: [{ id: "f", status: "UNVERIFIED", text: "shapes are illustrative" }], talkTrack: [{ title: "Open", say: "Say this first." }, { title: "Follow the hops", say: "Open the hops." }], tokenLabel: "MOCK" });
 const sse = (frames, { trailing = true } = {}) => frames.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}`).join("\n\n") + (trailing ? "\n\n" : "");
 
 let server;
@@ -142,7 +142,7 @@ describe("running a command", () => {
     expect(screen.getByTestId("exit-chip")).toHaveTextContent("exit 0");
     expect(screen.getByTestId("run-status")).toHaveTextContent(/Done/);
     const table = screen.getByTestId("easy-table");
-    expect(table).toHaveTextContent("Mia Fischer");
+    expect(table).toHaveTextContent("Emma Hartley");
     expect(table).toHaveTextContent("2 items");
     fireEvent.click(screen.getByTestId("view-json"));
     const json = screen.getByTestId("json-view");
@@ -169,7 +169,7 @@ describe("running a command", () => {
     expect(form.className).toContain("json--form");
     const hotRows = [...form.querySelectorAll('.jform__row[data-hot="true"] > .jform__k')].map((n) => n.textContent);
     expect(hotRows).toEqual(expect.arrayContaining(["status", "message", expect.stringMatching(/enabled$/)]));
-    expect(form).toHaveTextContent("mia.fischer@northwind.example");
+    expect(form).toHaveTextContent("emma.hartley@airguard.example");
     for (const el of [box, form]) expect(el.getAttribute("style")).toBeNull(); // no inline max-height / overflow
     expect(document.querySelector(".editor__content, .editor__lines, .editor__code")).toBeNull();
   });
@@ -426,10 +426,19 @@ describe("demo extras", () => {
     expect(screen.getByTestId("trace")).toHaveTextContent("0af7651916cd43dd8448eb211c80319c");
   });
 
+  test("the first load asks for the airlines vertical, and the picker shows it", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByTestId("nav-story"));
+    expect(await screen.findByTestId("story")).toHaveTextContent("AirGuard Airlines");
+    expect(screen.getByTestId("vertical-select")).toHaveValue("airlines");
+    expect(server.fetch.mock.calls.some(([u]) => String(u).includes("/api/story?vertical=airlines"))).toBe(true);
+    expect(server.fetch.mock.calls.some(([u]) => /vertical=retail/.test(String(u)))).toBe(false);
+  });
+
   test("Story renders the chosen vertical's cast and opens a command", async () => {
     render(<App />);
     fireEvent.click(screen.getByTestId("nav-story"));
-    expect(await screen.findByTestId("story")).toHaveTextContent("Northwind Retail");
+    expect(await screen.findByTestId("story")).toHaveTextContent("AirGuard Airlines");
     fireEvent.change(screen.getByTestId("vertical-select"), { target: { value: "banking" } });
     await waitFor(() => expect(screen.getByTestId("story")).toHaveTextContent("Fabrikam Bank"));
     expect(screen.getByTestId("story")).toHaveTextContent("UNVERIFIED");

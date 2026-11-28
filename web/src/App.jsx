@@ -29,7 +29,7 @@ const tabFromHash = () => {
 };
 
 export default function App() {
-  const [vertical, setVertical] = useState("retail");
+  const [vertical, setVertical] = useState("airlines");
   const [story, setStory] = useState(null);
   const [info, setInfo] = useState(undefined); // undefined = loading, null = failed
   const [tab, setTab] = useState(tabFromHash);
@@ -106,7 +106,7 @@ export default function App() {
         <span className="shell-right">
           <TopMenu
             mode={{ value: info?.mode === "real" ? "real" : "mock", onChange: switchTo, realAvailable: info ? info.realAvailable : null, realHint: info?.realHowTo || undefined }}
-            vertical={{ value: vertical, onChange: setVertical, options: story ? story.verticals : ["retail"] }}
+            vertical={{ value: vertical, onChange: setVertical, options: story ? story.verticals : ["airlines"] }}
             theme={{ value: theme, onChange: setTheme }}
             fontSize={{ value: fontStep, onChange: setFontStep }}
             present={{ active: presenter, onToggle: () => setPresenter((v) => !v) }}

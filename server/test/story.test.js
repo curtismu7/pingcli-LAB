@@ -1,14 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { CAST_TOKENS, DEFAULT_CAST, VERTICALS, fill, loadCast, unfilled } from '../src/cast.js';
+import { CAST_TOKENS, DEFAULT_CAST, DEFAULT_VERTICAL, VERTICALS, fill, loadCast, unfilled, verticalFrom } from '../src/cast.js';
 import { buildStory, rawStory, renderTalkTrackMarkdown } from '../src/story.js';
 import { COMMANDS } from '../src/commands.js';
 import { BANNER, FACTS, SCENARIOS } from '../src/storyData.js';
 import { rawDiagram } from '../src/diagramData.js';
+import { COMMAND_KEYS } from '../src/commands.js';
+import { mockOutput } from '../src/mockOutput.js';
 
-test('every {{token}} in the story and the diagram is defined in every vertical pack; three verticals', () => {
-  assert.deepEqual(Object.keys(VERTICALS), ['banking', 'healthcare', 'retail']);
+test('every {{token}} in the story and the diagram is defined in every vertical pack; four verticals', () => {
+  assert.deepEqual(Object.keys(VERTICALS), ['banking', 'healthcare', 'retail', 'airlines']);
   const text = JSON.stringify([rawStory(), rawDiagram('pingcli-flow')]);
   assert.ok(/\{\{cast/.test(text));
   for (const [name, cast] of Object.entries(VERTICALS)) {
@@ -62,4 +64,35 @@ test('customer.config can only set org, admin, envName and host, as short plain 
 
 test('the tenant-command shapes stay UNVERIFIED until the owner runs Real', () => {
   assert.equal(FACTS.find((f) => f.id === 'output-shapes').status, 'UNVERIFIED');
+});
+
+// AirGuard Airlines (a fictional airline) is the default story; the older packs still work.
+const RETIRED_NAMES = /Meridian|Northwind|Fabrikam|Contoso|Harbor|Vellum|Skyline|Tessera|Larkspur|Jordan Ellis|Dana Okafor|Sam Whitfield/i;
+
+test('the default vertical is airlines: AirGuard Airlines, host airguard', () => {
+  assert.equal(DEFAULT_VERTICAL, 'airlines');
+  assert.equal(DEFAULT_CAST, VERTICALS.airlines);
+  assert.equal(DEFAULT_CAST.castOrg, 'AirGuard Airlines');
+  assert.equal(DEFAULT_CAST.castHost, 'airguard');
+  assert.equal(fill('{{castOrg}}', DEFAULT_CAST), 'AirGuard Airlines');
+  assert.equal(verticalFrom(undefined), 'airlines');
+  assert.equal(verticalFrom('__proto__'), 'airlines', 'an unknown id falls back to the airline default');
+  assert.equal(verticalFrom('retail'), 'retail', 'a saved retail config keeps working');
+  assert.equal(loadCast(null, 'finance').castOrg, 'AirGuard Airlines', 'an unknown id does not crash');
+});
+
+test('the airline run (story, talk track, diagram, every command output, seed) names no retired brand', () => {
+  const cast = loadCast(null);
+  const rendered = JSON.stringify([buildStory(cast), renderTalkTrackMarkdown(cast), JSON.parse(fill(JSON.stringify(rawDiagram('pingcli-flow')), cast)), COMMAND_KEYS.map((k) => mockOutput(k, cast).text), cast.seed]);
+  assert.ok(rendered.includes('AirGuard Airlines'));
+  assert.doesNotMatch(rendered, RETIRED_NAMES);
+});
+
+test('each older pack still renders its own brand and none of the airline brand', () => {
+  for (const [id, brand] of [['banking', 'Fabrikam Bank'], ['healthcare', 'Contoso Health'], ['retail', 'Northwind Retail']]) {
+    const cast = loadCast(null, id);
+    const rendered = JSON.stringify([buildStory(cast), COMMAND_KEYS.map((k) => mockOutput(k, cast).text)]);
+    assert.ok(rendered.includes(brand), id);
+    assert.doesNotMatch(rendered, /AirGuard|airguard/, id);
+  }
 });

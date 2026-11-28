@@ -50,7 +50,7 @@ try {
     await page.getByTestId('run-pingone_users_list').click();
     await page.getByTestId('easy-table').waitFor({ timeout: 15000 });
     const t = await page.getByTestId('easy-table').textContent();
-    expect(/Mia Fischer/.test(t), 'retail cast not in the table');
+    expect(/Emma Hartley/.test(t), 'airlines cast not in the table');
     expect(/exit 0/.test(await page.getByTestId('exit-chip').textContent()), 'no exit 0');
     expect(/MOCK output/.test(await page.getByTestId('mock-output').textContent()), 'output not labelled MOCK');
     await page.getByTestId('prereq-chain').waitFor();
