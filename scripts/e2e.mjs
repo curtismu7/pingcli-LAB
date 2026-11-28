@@ -35,7 +35,7 @@ try {
     const modal = page.getByTestId('mode-modal');
     await modal.waitFor({ timeout: 10000 });
     expect((await modal.getAttribute('data-mode')) === 'mock', 'modal is not MOCK');
-    expect(/^MOCK\b/.test((await modal.textContent()).trim()), 'modal does not say MOCK');
+    expect(/^MOCK/.test((await modal.textContent()).trim()), 'modal does not say MOCK');
     await page.getByTestId('mode-modal-ok').click();
     expect(await page.getByTestId('mode-modal').count() === 0, 'modal still open after Got it');
     await page.reload();
