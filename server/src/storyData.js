@@ -57,7 +57,7 @@ export const SCENARIOS = [
 ];
 
 export const TALK_TRACK = [
-  { title: 'Open', say: 'This is {{castOrg}}. {{castAdmin}} wants to stop clicking through the console and script the {{castEnvName}} environment. Ping CLI is the tool. The banner says whether we are in Mock or Real.' },
+  { title: 'Open', say: 'This is {{castOrg}}. {{castAdmin}} wants to stop clicking through the console and script the {{castEnvName}} environment. Ping CLI is the tool. The modal that opens the page says whether we are in Mock or Real.' },
   { title: 'Install, configure, authenticate', say: 'Each command shows the steps it needs: install, pingcli init for a worker profile, pingone auth login once. The lab writes the profile for you, privately, and never shows the secret.' },
   { title: 'Read the directory', say: 'Run List users. The raw JSON streams in, then the easy-read table picks the useful columns. The same JSON is what a script would parse.' },
   { title: 'Follow the hops', say: 'Open the hops: browser to lab, lab to pingcli, pingcli to the PingOne token endpoint once, then to the management API. In Mock those last two are simulated and say so.' },

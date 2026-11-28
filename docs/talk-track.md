@@ -4,7 +4,7 @@
 
 ## Open
 
-This is AirGuard Airlines. Priya Nair wants to stop clicking through the console and script the AirGuard Passenger Access environment. Ping CLI is the tool. The banner says whether we are in Mock or Real.
+This is AirGuard Airlines. Priya Nair wants to stop clicking through the console and script the AirGuard Passenger Access environment. Ping CLI is the tool. The modal that opens the page says whether we are in Mock or Real.
 
 ## Install, configure, authenticate
 

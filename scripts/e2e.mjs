@@ -28,14 +28,26 @@ try {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${BASE}/`);
   // A clean start: the reset puts this workspace back, the theme starts light.
-  await page.evaluate(() => { try { localStorage.clear(); } catch { /* blocked */ } });
+  await page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear(); } catch { /* blocked */ } });
   await page.reload();
 
-  await check('page loads in Mock: shell bar, banner first in the page, Mock badge', async () => {
-    await page.getByTestId('banner').filter({ hasText: /^MOCK: / }).waitFor({ timeout: 10000 });
+  await check('page opens on the MOCK modal; Got it closes it and a same-session reload does not show it again', async () => {
+    const modal = page.getByTestId('mode-modal');
+    await modal.waitFor({ timeout: 10000 });
+    expect((await modal.getAttribute('data-mode')) === 'mock', 'modal is not MOCK');
+    expect(/^MOCK/.test((await modal.textContent()).trim()), 'modal does not say MOCK');
+    await page.getByTestId('mode-modal-ok').click();
+    expect(await page.getByTestId('mode-modal').count() === 0, 'modal still open after Got it');
+    await page.reload();
+    await page.getByTestId('mode-badge').filter({ hasText: 'Mock' }).waitFor({ timeout: 10000 });
+    expect(await page.getByTestId('mode-modal').count() === 0, 'modal came back after a reload in the same session');
+  });
+
+  await check('page loads in Mock: shell bar, no simulation banner, page title first, Mock badge', async () => {
     expect(await page.locator('header.shell-bar').count() === 1, 'no shell bar');
-    const first = await page.evaluate(() => document.querySelector('main.page').firstElementChild.dataset.testid);
-    expect(first === 'banner', `first element in the page is ${first}`);
+    expect(await page.getByTestId('banner').count() === 0, 'a simulation banner is still on the page');
+    const first = await page.evaluate(() => document.querySelector('main.page').firstElementChild.className);
+    expect(first === 'page-head', `first element in the page is ${first}`);
     expect((await page.getByTestId('mode-badge').textContent()) === 'Mock', 'badge is not Mock');
   });
 
@@ -132,7 +144,7 @@ try {
     expect((await page.getByTestId('raw-output').textContent()).startsWith('[[[['), 'deep JSON not shown as raw text');
     expect(await page.locator('header.shell-bar').isVisible(), 'shell bar gone');
     expect(await page.getByTestId('mode-select').isVisible(), 'mode toggle gone');
-    expect(await page.getByTestId('banner').isVisible(), 'banner gone');
+    expect(await page.getByTestId('mode-badge').isVisible(), 'mode badge gone');
     await page.unroute('**/api/stream?*');
   });
 
@@ -140,7 +152,8 @@ try {
     const m = await browser.newContext({ viewport: { width: 375, height: 812 }, colorScheme: 'dark' });
     const p = await m.newPage();
     await p.goto(`${BASE}/`);
-    await p.getByTestId('banner').filter({ hasText: /^MOCK: / }).waitFor();
+    await p.getByTestId('mode-modal').filter({ hasText: /^MOCK/ }).waitFor();
+    await p.getByTestId('mode-modal-ok').click();
     await p.getByTestId('run-config_list_keys').scrollIntoViewIfNeeded();
     await p.getByTestId('run-config_list_keys').click();
     await p.getByTestId('exit-chip').waitFor({ timeout: 15000 });
