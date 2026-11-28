@@ -1,6 +1,6 @@
 import { Component } from "react";
 
-// A render failure inside a panel shows an inert error card and leaves the rest of the page (shell bar, banner, mode
+// A render failure inside a panel shows an inert error card and leaves the rest of the page (shell bar, mode
 // toggle) working. The message is shown as text, never markup. resetKey: a new value (a new run, a mode switch) retries.
 export default class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null, key: props.resetKey }; }

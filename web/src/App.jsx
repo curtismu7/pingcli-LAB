@@ -8,6 +8,7 @@ import TopMenu, { applyFontSize } from "./top-menu/TopMenu";
 import ShelfLink from "./components/ShelfLink";
 import VerifyMark from "./components/VerifyMark.jsx";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ModeModal from "./mode-modal/ModeModal.jsx";
 import { getJson, resetWorkspace, setMode } from "./api";
 
 export const TABS = [
@@ -17,8 +18,13 @@ export const TABS = [
   { id: "trace", label: "Trace", title: "Hops of the last run" },
   { id: "talk", label: "Talk track", title: "Talk track" },
 ];
-// The banner is never blank: until /api/info answers (or if it fails) it says the safe thing.
-export const BANNER_UNKNOWN = "MOCK until the server says otherwise: canned pingcli output, nothing leaves this machine.";
+// The Real-or-mock modal's lines (it replaced the simulation banner). It never claims Real before the server has said so: until /api/info answers
+// (or if it fails) the modal says MOCK with the "unknown" line. The server still sends a `banner` string in /api/info (its tests pin it); the page no longer reads it.
+export const MODE_LINES = {
+  unknown: "MOCK until the server says otherwise: canned pingcli output, nothing leaves this machine.",
+  mock: "No pingcli binary runs and nothing leaves this machine. Every output is canned, shaped like pingcli 1.2.0 output, with made-up ids and .example hosts; the token request is simulated.",
+  real: "The pingcli binary this lab is configured with runs against YOUR PingOne environment with worker client credentials from your settings, and the page flags a version that is not 1.2.0. Only the 14 read-only commands can run; the client secret is write-only, never shown, logged or returned.",
+};
 // Presenter mode: which talk-track sections go with which tab.
 const SAY = { commands: ["Install, configure, authenticate", "Read the directory"], story: ["Open"], diagram: ["Follow the hops"], trace: ["Follow the hops"] };
 
@@ -94,7 +100,6 @@ export default function App() {
   const openCommand = (key) => { setFocusKey(key); go("commands"); };
 
   const real = info?.mode === "real";
-  const banner = info?.banner || BANNER_UNKNOWN;
   const current = TABS.find((t) => t.id === tab);
   return (
     <div className={`app${presenter ? " app--presenter" : ""}`}>
@@ -120,7 +125,6 @@ export default function App() {
         </span>
       </header>
       <main className="page">
-        <p className="banner" role="note" data-state={real ? "live" : undefined} data-testid="banner">{banner}</p>
         <div className="page-head">
           <h1>{current.title}</h1>
           <div className="page-tools">
@@ -151,6 +155,7 @@ export default function App() {
         </div>
         <p className="muted foot">Talk track: <a href="#talk" onClick={(e) => { e.preventDefault(); go("talk"); }}>on screen</a> or <code>docs/talk-track.md</code>. Keys: P presenter, Esc leave.</p>
       </main>
+      <ModeModal mode={real ? "real" : "mock"} lines={{ mock: info ? MODE_LINES.mock : MODE_LINES.unknown, real: MODE_LINES.real }} storageKey="pcli-mode" />
     </div>
   );
 }

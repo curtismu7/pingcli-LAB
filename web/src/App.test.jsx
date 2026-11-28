@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import App, { BANNER_UNKNOWN } from "./App";
+import App, { MODE_LINES } from "./App";
 import { parseSseBlock } from "./components/PingCliPage";
 import ModeToggle from "./components/ModeToggle";
 import { setJsonView } from "./components/Json";
@@ -69,18 +69,66 @@ const runUsers = async () => {
   await screen.findByTestId("easy-table");
 };
 
-describe("shell, banner and mode", () => {
-  test("the dark shell bar comes first, then the banner is the first thing in the page, before the title", async () => {
+describe("shell, Real-or-mock modal and mode", () => {
+  test("the dark shell bar comes first, then the page title (no simulation banner); the page opens on the MOCK modal", async () => {
     render(<App />);
     const bar = document.querySelector("header.shell-bar");
     expect(bar).toBeTruthy();
     const main = document.querySelector("main.page");
-    expect(main.firstElementChild).toBe(screen.getByTestId("banner"));
-    expect(screen.getByTestId("banner")).toHaveAttribute("role", "note");
-    expect(screen.getByTestId("banner").textContent).toBe(BANNER_UNKNOWN);
-    await waitFor(() => expect(screen.getByTestId("banner").textContent).toMatch(/^MOCK: no pingcli binary runs/));
+    expect(main.firstElementChild).toHaveClass("page-head");
+    expect(screen.queryByTestId("banner")).toBeNull();
+    expect(main.querySelector(".banner")).toBeNull();
+    const modal = screen.getByTestId("mode-modal");
+    expect(modal).toHaveAttribute("data-mode", "mock");
+    expect(modal).toHaveTextContent("MOCK");
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveTextContent(MODE_LINES.mock));
     expect(screen.getByTestId("mode-badge").textContent).toBe("Mock");
     expect(within(bar).getByTestId("nav-commands")).toHaveAttribute("aria-current", "page");
+  });
+
+  test("until /api/info answers the modal says MOCK with the unknown line; when the server never answers it stays MOCK", async () => {
+    let release; const held = new Promise((r) => { release = r; });
+    vi.stubGlobal("fetch", (u, o) => (String(u).includes("/api/info") ? held.then(() => server.fetch(u, o)) : server.fetch(u, o)));
+    render(<App />);
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(MODE_LINES.unknown);
+    release();
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveTextContent(MODE_LINES.mock));
+    cleanup();
+    vi.stubGlobal("fetch", (u, o) => (String(u).includes("/api/info") ? Promise.reject(new Error("down")) : server.fetch(u, o)));
+    render(<App />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Could not reach the lab server/);
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(MODE_LINES.unknown);
+  });
+
+  test("Got it closes the modal, Escape closes it too, and a fresh render in the same session does not bring it back", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByTestId("mode-modal-ok"));
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+    cleanup();
+    render(<App />);
+    await screen.findByTestId("mode-select");
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+    cleanup();
+    sessionStorage.clear();
+    render(<App />);
+    fireEvent.keyDown(await screen.findByTestId("mode-modal-ok"), { key: "Escape" });
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
+  });
+
+  test("a server that is already Real shows MOCK until /api/info answers, then REAL with the Real line", async () => {
+    server = fakeServer({ realAvailable: true }); server.mode = "real";
+    let release; const held = new Promise((r) => { release = r; });
+    vi.stubGlobal("fetch", (u, o) => (String(u).includes("/api/info") ? held.then(() => server.fetch(u, o)) : server.fetch(u, o)));
+    render(<App />);
+    expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock");
+    release();
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "real"));
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent("REAL");
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(MODE_LINES.real);
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(/write-only/);
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(/only the 14 read-only commands/i);
   });
 
   test("Real unconfigured: the Real button is disabled with the how-to as its tooltip, and the how-to card shows", async () => {
@@ -103,10 +151,25 @@ describe("shell, banner and mode", () => {
     await waitFor(() => expect(screen.getByTestId("mode-badge").textContent).toBe("Real"));
     expect(server.calls).toContain("POST /api/mode");
     await waitFor(() => expect(server.calls.filter((c) => c === "GET /api/commands").length).toBeGreaterThan(before));
-    expect(screen.getByTestId("banner")).toHaveAttribute("data-state", "live");
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "real"));
+    expect(screen.getByTestId("mode-modal")).toHaveTextContent(MODE_LINES.real);
     fireEvent.change(screen.getByTestId("mode-select"), { target: { value: "mock" } });
     await waitFor(() => expect(screen.getByTestId("mode-badge").textContent).toBe("Mock"));
-    expect(screen.getByTestId("banner")).not.toHaveAttribute("data-state");
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "mock"));
+  });
+
+  test("dismissing the MOCK modal does not hide the REAL one on a switch, and each is shown once per session", async () => {
+    server = fakeServer({ realAvailable: true }); vi.stubGlobal("fetch", server.fetch);
+    render(<App />);
+    fireEvent.click(await screen.findByTestId("mode-modal-ok"));
+    const select = await screen.findByTestId("mode-select");
+    await waitFor(() => expect(select.querySelector('option[value="real"]')).not.toBeDisabled());
+    fireEvent.change(select, { target: { value: "real" } });
+    await waitFor(() => expect(screen.getByTestId("mode-modal")).toHaveAttribute("data-mode", "real"));
+    fireEvent.click(screen.getByTestId("mode-modal-ok"));
+    fireEvent.change(screen.getByTestId("mode-select"), { target: { value: "mock" } });
+    await waitFor(() => expect(screen.getByTestId("mode-badge").textContent).toBe("Mock"));
+    expect(screen.queryByTestId("mode-modal")).toBeNull();
   });
 
   test("a 409 from /api/mode is reported and the mode stays Mock", async () => {
@@ -248,7 +311,7 @@ describe("running a command", () => {
 
 describe("review fixes (step 2)", () => {
   const deep = `${"[".repeat(50000)}${"]".repeat(50000)}`;
-  test("BLOCKING: 50000-deep JSON output renders as inert raw text; the shell, banner and toggle stay", async () => {
+  test("BLOCKING: 50000-deep JSON output renders as inert raw text; the shell, modal and toggle stay", async () => {
     server = fakeServer({ runText: deep }); vi.stubGlobal("fetch", server.fetch);
     render(<App />);
     fireEvent.click(await screen.findByTestId("run-pingone_users_list"));
@@ -256,7 +319,7 @@ describe("review fixes (step 2)", () => {
     expect(screen.getByTestId("raw-output").textContent.startsWith("[[[[")).toBe(true);
     expect(screen.queryByTestId("view-easy")).toBeNull();
     expect(document.querySelector("header.shell-bar")).toBeTruthy();
-    expect(screen.getByTestId("banner")).toBeTruthy();
+    expect(screen.getByTestId("mode-modal")).toBeTruthy();
     expect(screen.getByTestId("top-menu")).toBeTruthy();
   });
 
@@ -446,12 +509,13 @@ describe("demo extras", () => {
     expect(screen.getByTestId("nav-commands")).toHaveAttribute("aria-current", "page");
   });
 
-  test("presenter mode keeps the banner first and shows the talk track; Escape leaves", async () => {
+  test("presenter mode keeps the mode badge and shows the talk track; Escape leaves", async () => {
     render(<App />);
     await screen.findByTestId("mode-select");
     fireEvent.click(screen.getByTestId("presenter"));
     expect(document.querySelector(".app--presenter")).toBeTruthy();
-    expect(document.querySelector("main.page").firstElementChild).toBe(screen.getByTestId("banner"));
+    expect(screen.getByTestId("mode-badge")).toBeVisible();
+    expect(screen.queryByTestId("banner")).toBeNull();
     expect(await screen.findByTestId("presenter-say")).toBeTruthy();
     act(() => { window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
     expect(document.querySelector(".app--presenter")).toBeNull();

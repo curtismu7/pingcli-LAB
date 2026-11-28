@@ -12,7 +12,7 @@ Derived from the AI-DEMO2 /pingcli page (read-only source, never imported). Scaf
 
 ## The page
 
-One page with five tabs in the Ping UI standard (dark shell bar with the Ping Red rule, the simulation banner first on every tab and in presenter mode, Mock/Real toggle and theme toggle in the header, usable at 375px):
+One page with five tabs in the Ping UI standard (dark shell bar with the Ping Red rule, the Real-or-mock modal on open (MOCK or REAL), Mock/Real toggle, mode badge and theme toggle in the header on every tab and in presenter mode, usable at 375px):
 
 - **Commands**: the AI-DEMO2 page ported: Install, Configure and authenticate, How to run (collapsible, remembered), command cards by category with Copy and Run; the result opens right under the category of the card that was run, with a run status, one line showing what the command needed (installed → configured → authenticated → the command, each linking back to its section; Install starts collapsed once pingcli answers with a version), Easy read (table or form) vs JSON (the shared JsonPane: a Form | JSON toggle, colored by part, important keys stood out, full view with no scrolling). When Real is not configured, a how-to replaces the source page's sign-in prompt.
 - **Story**: the vertical picker (airlines, the default, then banking, healthcare, retail), scenarios that open their command, and every claim with its status.
